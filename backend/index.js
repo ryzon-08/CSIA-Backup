@@ -7,24 +7,15 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors({
-    origin: true,
-    credentials: true
-}));
+const corsOptions = {
+  origin: 'http://localhost:5173', // Adjust as needed for your frontend
+  credentials:true,
+  optionsSuccessStatus: 200,
+};
 
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
-
+app.use(cors(corsOptions));
 app.use(express.json());
+
 
 
 
