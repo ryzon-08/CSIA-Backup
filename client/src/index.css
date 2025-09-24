@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+df
+* {
+  margin:0;
+  padding:0;
+  box-sizing: border-box;
+}
+
+
+
+body {
+    font-family: 'Roboto', inter;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 95vh;
+    background: rgb(33, 33, 33);
+    
+    
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaca, Consolas,
+    'Courier New',
+    monospace;
+}

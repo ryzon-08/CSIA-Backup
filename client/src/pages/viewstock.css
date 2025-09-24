@@ -1,0 +1,244 @@
+.body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+
+.viewstockcontainer {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 20px;
+  width: 92%;
+  margin-left: 41px;
+  border-radius: 15px;
+  background-color: #5a67d8;
+  margin-bottom: 20px;
+}
+
+.viewstockheader {
+  display: flex;
+  flex: 1;
+}
+
+.navtab {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  margin-right: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.navtab:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.navtab.active {
+  background-color: white;
+  color: #5a67d8;
+}
+
+.tabicon {
+  margin-right: 8px;
+}
+
+.headeright {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+
+.searchcontainer {
+  display: flex;
+  align-items: center;
+}
+
+
+.searchinput {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 20px;
+  width: 200px;
+  font-size: 14px;
+  background-color: white;
+  color: #333;
+}
+
+.searchinput:focus {
+  outline: none;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.usersection {
+  display: flex;
+  align-items: center;
+  padding: 8px 15px;
+  margin-right: 15px;
+  margin-left: 25px;
+  width: 30px;
+
+}
+
+.userlogo {
+  width: 30px;
+  height: 30px;
+  background-color: rgba(255, 255, 255, 0.252);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1px;
+}
+
+.usericon {
+  color: white;
+  font-size: 14px;
+}
+
+.user-id {
+  color: white;
+  font-size: 14px;
+}
+
+.backbtn {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+.backbtn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+
+.tablecontainer {
+  width: 95%;
+  margin: 0 auto;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.stocktable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.stocktable thead {
+  background-color: #f8f9fa;
+}
+
+.stocktable th {
+  padding: 15px 12px;
+  text-align: left;
+  font-weight: bold;
+  color: #333;
+  border-bottom: 2px solid #ddd;
+}
+
+.stocktable td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  color: #666;
+}
+
+.stocktable tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.stocktable tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.stocktable tbody tr:nth-child(even):hover {
+  background-color: #f0f0f0;
+}
+
+.actionscell {
+  position: relative;
+  text-align: center;
+}
+
+.menucontainer {
+  position: relative;
+  display: inline-block;
+}
+
+.menubtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  color: #666;
+  border-radius: 3px;
+}
+
+.menubtn:hover {
+  background-color: #e9ecef;
+  color: #333;
+}
+
+.actionmenu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  min-width: 100px;
+}
+
+.menuitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 15px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  transition: background-color 0.2s;
+}
+
+.menuitem:hover {
+  background-color: #f8f9fa;
+}
+
+.menuitem.delete {
+  color: #dc3545;
+}
+
+.menuitem.delete:hover {
+  background-color: #f8d7da;
+}
+
+.menuitem.edit {
+  color: #007bff;
+}
+
+.menuitem.edit:hover {
+  background-color: #d1ecf1;
+}
+
+.menuitem.save {
+  color: #28a745;
+}
+
+.menuitem.save:hover {
+  background-color: #d4edda;
+}
+
