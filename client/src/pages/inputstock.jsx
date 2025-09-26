@@ -29,15 +29,34 @@ const InputStock = () => {
         }));
     };
 
- const handleSave = () => {
-    console.log('Saving Product:', formData);
-    alert('Product saved successfully!');
-    // Basic validation
-    if (!formData.product_id || !formData.product_name || !formData.quantity || !formData.cost_price || !formData.selling_price) {
-        alert("Please fill in all required fields.");
-        return;
-    }
-};
+    const handleSave = async () => {
+        setError('');
+        setSuccess('');
+        // Basic validation
+        if (!formData.product_id || !formData.product_name || !formData.quantity || !formData.cost_price || !formData.selling_price) {
+            setError("Please fill in all required fields.");
+            return;
+        }
+        else{
+        setLoading(true);
+        try {
+            await axios.post('http://localhost:5000/api/stock', formData, {withCredentials: true, headers: {'Content-Type': 'application/json'}});
+            setSuccess('Product saved successfully!');
+            setFormData({
+                product_id: '',
+                product_name: '',
+                quantity: '',
+                cost_price: '',
+                selling_price: '',
+                expiry_date: '',
+                staple: false
+            });
+        } catch (err) {
+            setError('Error saving product. Please try again.');
+        } finally {
+            setLoading(false);
+        }}
+    };
 
     const handleClear = () => {
         setFormData({
