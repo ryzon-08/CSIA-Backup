@@ -40,7 +40,7 @@ const InputStock = () => {
         else{
         setLoading(true);
         try {
-            await axios.post('http://localhost:5000/api/stock', formData, {withCredentials: true, headers: {'Content-Type': 'application/json'}});
+            await axios.post('http://localhost:3306/api/stock', formData, {withCredentials: true, headers: {'Content-Type': 'application/json'}});
             setSuccess('Product saved successfully!');
             setFormData({
                 product_id: '',

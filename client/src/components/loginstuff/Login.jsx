@@ -22,7 +22,7 @@ const LoginInterface = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        if (userid === "6911" && password === "bums19") {
+        if (userid === "6911" && password === "project19") {
             login()
             setError("");
             navigate("/dashboard");
