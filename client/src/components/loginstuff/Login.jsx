@@ -6,6 +6,8 @@ import {useNavigate} from "react-router-dom";
 import {useAuth} from "../../context/authcontext";
 import {useState} from "react";
 
+
+//stating variables for user id, password and errors
 const LoginInterface = () => {
     const [userid, setUserid] = useState("");
     const [password, setPassword] = useState("");
@@ -13,27 +15,28 @@ const LoginInterface = () => {
     const {login}=useAuth();
     const navigate = useNavigate();
 
+
+    //function to handle try again button and reset fields
     const handleTryAgain = () => {
         setUserid("");
         setPassword("");
         setError("");
     };
 
+    //function to handle form submission and validate credentials
     const handleSubmit = (e) => {
         e.preventDefault();
-
-        if (userid === "6911" && password === "project19") {
-            login()
+        //Validating user id and password
+        if (userid === "admin" && password === "stock123") {
+            login() //update auth context on successful login
             setError("");
-            navigate("/dashboard");
+            navigate("/dashboard"); //redirect to dashboard on successful login
         } else {
-            setError("Invalid User ID or Password");
+            setError("Invalid User ID or Password"); //error message if validation failed
         }
     }
 
     return (
-
-
         <>    
             <img 
                 src={logo} 

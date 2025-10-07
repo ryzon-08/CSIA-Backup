@@ -32,15 +32,31 @@ const InputStock = () => {
     const handleSave = async () => {
         setError('');
         setSuccess('');
-        // Basic validation
-        if (!formData.product_id || !formData.product_name || !formData.quantity || !formData.cost_price || !formData.selling_price) {
-            setError("Please fill in all required fields.");
+        // Basic validation with specific feedback
+        const missing = [];
+        if (!formData.product_id) missing.push('Product ID');
+        if (!formData.product_name) missing.push('Product Name');
+        if (formData.quantity === '') missing.push('Quantity');
+        if (formData.cost_price === '') missing.push('Cost Price');
+        if (formData.selling_price === '') missing.push('Selling Price');
+        if (missing.length) {
+            setError(`Missing required fields: ${missing.join(', ')}`);
             return;
         }
-        else{
+
+        const payload = {
+            product_id: String(formData.product_id),
+            product_name: String(formData.product_name),
+            quantity: Number(formData.quantity),
+            cost_price: Number(formData.cost_price),
+            selling_price: Number(formData.selling_price),
+            expiry_date: formData.expiry_date || null,
+            staple: !!formData.staple,
+        };
+
         setLoading(true);
         try {
-            await axios.post('http://localhost:3306/api/stock', formData, {withCredentials: true, headers: {'Content-Type': 'application/json'}});
+            await axios.post('/api/stock', payload, { headers: { 'Content-Type': 'application/json' } });
             setSuccess('Product saved successfully!');
             setFormData({
                 product_id: '',
@@ -52,10 +68,11 @@ const InputStock = () => {
                 staple: false
             });
         } catch (err) {
-            setError('Error saving product. Please try again.');
+            const msg = err?.response?.data?.error || 'Error saving product. Please try again.';
+            setError(msg);
         } finally {
             setLoading(false);
-        }}
+        }
     };
 
     const handleClear = () => {
