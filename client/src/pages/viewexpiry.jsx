@@ -1,26 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaArrowLeft, FaClock, FaSearch, FaBox } from 'react-icons/fa';
+import { FaUserAlt, FaArrowLeft, FaSearch, FaBox, FaClock } from 'react-icons/fa';
+import SalesNavTabs from './components/SalesNavTabs';
+import axios from 'axios';
 import './viewexpiry.css';
 
 const ViewExpiry = () => {
     const navigate = useNavigate();
+    const getUserId = () => {
+        try {
+            return localStorage.getItem('userId') || 'Guest';
+        } catch {
+            return 'Guest';
+        }
+    };
     const [expiryDate, setExpiryDate] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [showResults, setShowResults] = useState(false);
+    const [stockData, setStockData] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
+    // Fetch stock data from API
+    const fetchStock = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const response = await axios.get('http://localhost:5001/api/stock');
+            // Filter only staple items
+            const stapleItems = response.data.filter(item => item.staple);
+            setStockData(stapleItems);
+        } catch (e) {
+            console.error('Fetch stock failed:', e);
+            setError('Failed to load stock data');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    const [stockData] = useState([
-        { id: '001', name: 'Rice Bags', quantity: 69, expiryDate: '15/12/2024' },
-        { id: '002', name: 'Cooking Oil', quantity: 24, expiryDate: '19/09/2026' },
-        { id: '003', name: 'Sugar Packets', quantity: 10, expiryDate: '25/11/2024' },
-        { id: '004', name: 'Baking Flour', quantity: 156, expiryDate: '30/10/2024' },
-        { id: '005', name: 'Fried Chicken Mix', quantity: 420, expiryDate: '19/09/2026' },
-        { id: '006', name: 'Cool Aid', quantity: 32, expiryDate: '05/01/2025' },
-        { id: '007', name: 'Watermelon', quantity: 22, expiryDate: '19/09/2026' },
-        { id: '008', name: 'Insence', quantity: 19, expiryDate: '12/03/2025' },
-        { id: '009', name: 'Shampoo', quantity: 33, expiryDate: '15/08/2030' }
-    ]);
+    useEffect(() => {
+        fetchStock();
+    }, []);
 
     const handleBack = () => {
         navigate('/dashboard');
@@ -35,9 +55,8 @@ const ViewExpiry = () => {
         const searchDate = new Date(expiryDate);
 
         const filtered = stockData.filter(product => {
-            if (!product.expiryDate) return false;
-            const [day, month, year] = product.expiryDate.split('/');
-            const productExpiryDate = new Date(year, month - 1, day);
+            if (!product.expiry_date) return false;
+            const productExpiryDate = new Date(product.expiry_date);
             
             return productExpiryDate <= searchDate;
         });
@@ -54,35 +73,28 @@ const ViewExpiry = () => {
 
     const formatDisplayDate = (dateStr) => {
         if (!dateStr) return '';
-        const [day, month, year] = dateStr.split('/');
-        return `${day}/${month}/${year}`;
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
     };
 
     return (
         <div className="view-expiry-container">
-            <div className="header">
-                <div className="header-content">
-                    <div className="nav-items">
-                        <div className="nav-item active">
-                            <FaClock className="nav-icon" />
-                            <span>View Expiry</span>
+            <div className="viewstockcontainer">
+                <div className="viewstockheader">
+                    <SalesNavTabs />
+                    <div className="headeright">
+                        <div className="usersection">
+                            <div className="userlogo">
+                                <FaUserAlt className="usericon" />
+                            </div>
+                            <span className="user-id">{getUserId()}</span>
                         </div>
-                        <div className="nav-item" onClick={() => navigate('/inputsales')}>
-                            <FaDollarSign className="nav-icon" />
-                            <span>Input Sales</span>
-                        </div>
-                        <div className="nav-item" onClick={() => navigate('/viewsales')}>
-                            <FaTruck className="nav-icon" />
-                            <span>View Sales</span>
-                        </div>
-                    </div>
-                    <div className="user-section">
-                        <div className="user-avatar">
-                            <FaUserAlt className="user-icon" />
-                        </div>
-                        <span className="user-id">User ID</span>
-                        <button onClick={handleBack} className="back-button">
-                            <FaArrowLeft className="back-icon" />
+                        <button className="backbtn" onClick={handleBack}>
+                            <FaArrowLeft />
                         </button>
                     </div>
                 </div>
@@ -131,22 +143,32 @@ const ViewExpiry = () => {
                         </div>
 
                         <div className="table-body">
-                            {filteredProducts.length > 0 ? (
+                            {loading && (
+                                <div className="no-results">
+                                    <p>Loading...</p>
+                                </div>
+                            )}
+                            {error && (
+                                <div className="no-results">
+                                    <p style={{color: 'red'}}>{error}</p>
+                                </div>
+                            )}
+                            {!loading && !error && filteredProducts.length > 0 ? (
                                 filteredProducts.map((product) => (
-                                    <div key={product.id} className="table-row">
-                                        <div className="table-cell">{product.id}</div>
-                                        <div className="table-cell">{product.name}</div>
+                                    <div key={product.product_id} className="table-row">
+                                        <div className="table-cell">{product.product_id}</div>
+                                        <div className="table-cell">{product.product_name}</div>
                                         <div className="table-cell">{product.quantity}</div>
                                         <div className="table-cell expiry-date">
-                                            {formatDisplayDate(product.expiryDate)}
+                                            {formatDisplayDate(product.expiry_date)}
                                         </div>
                                     </div>
                                 ))
-                            ) : (
+                            ) : !loading && !error ? (
                                 <div className="no-results">
                                     <p>No products found expiring on or before {expiryDate}</p>
                                 </div>
-                            )}
+                            ) : null}
                         </div>
                     </div>
                 )}

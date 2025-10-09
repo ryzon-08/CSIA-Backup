@@ -1,26 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaArrowLeft, FaEllipsisV, FaTrash, FaEdit, FaSave, FaMinus, FaPlus } from 'react-icons/fa';
+import { FaUserAlt, FaArrowLeft, FaMinus, FaPlus } from 'react-icons/fa';
+import SalesNavTabs from './components/SalesNavTabs';
+import axios from 'axios';
 import "./inputsales.css";
 
 const InputSales = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const getUserId = () => {
+        try {
+            return localStorage.getItem('userId') || 'Guest';
+        } catch {
+            return 'Guest';
+        }
+    };
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeMenu, setActiveMenu] = useState(null);
     const [cartItems, setCartItems] = useState({});
+    const [stockData, setStockData] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const [stockData] = useState([
-        { id: '001', name: 'Rice Bags', quantity: 69, staple: false, expiryDate: '', costPrice: 'K20', sellingPrice: 'K75' },
-        { id: '002', name: 'Cooking Oil', quantity: 24, staple: true, expiryDate: '19/09/2026', costPrice: 'K50', sellingPrice: 'K150' },
-        { id: '003', name: 'Sugar Packets', quantity: 10, staple: true, expiryDate: '19/09/2026', costPrice: 'K10', sellingPrice: 'K40' },
-        { id: '004', name: 'Baking Flour', quantity: 156, staple: true, expiryDate: '', costPrice: 'K3', sellingPrice: 'K10' },
-        { id: '005', name: 'Fried Chicken Mix', quantity: 420, staple: true, expiryDate: '19/09/2026', costPrice: 'K25', sellingPrice: 'K75' },
-        { id: '006', name: 'Cool Aid', quantity: 32, staple: true, expiryDate: '', costPrice: 'K45', sellingPrice: 'K200' },
-        { id: '007', name: 'Watermelon', quantity: 22, staple: true, expiryDate: '19/09/2026', costPrice: 'K15', sellingPrice: 'K50' },
-        { id: '008', name: 'Insence', quantity: 19, staple: false, expiryDate: '', costPrice: 'K8', sellingPrice: 'K25' },
-        { id: '009', name: 'Shampoo', quantity: 33, staple: true, expiryDate: '15/08/2030', costPrice: 'K12', sellingPrice: 'K35' }
-    ]);
+    // Fetch stock data from API
+    const fetchStock = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const response = await axios.get('http://localhost:5001/api/stock');
+            setStockData(response.data);
+        } catch (e) {
+            console.error('Fetch stock failed:', e);
+            setError('Failed to load stock data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchStock();
+    }, []);
 
     // Determine which tab is active based on current route
     const getActiveTab = () => {
@@ -35,28 +53,41 @@ const InputSales = () => {
         navigate('/dashboard');
     };
 
-    const handleProceedToBill = () => {
-        navigate('/inputsalesbill');
-    };
+  const handleProceedToBill = () => {
+    const selectedIds = Object.keys(cartItems);
+    if (selectedIds.length === 0) {
+      alert('No items selected');
+      return;
+    }
 
-    const toggleMenu = (index) => {
-        setActiveMenu(activeMenu === index ? null : index);
-    };
+    // Map selected products, filter out any missing records defensively
+    const cartData = selectedIds
+      .map(productId => {
+        const product = stockData.find(item => String(item.product_id) === String(productId));
+        if (!product) return null;
+        const qty = Number(cartItems[productId] || 0);
+        const unit = Number(product.selling_price || 0);
+        return {
+          product_id: String(productId),
+          product_name: String(product.product_name),
+          quantity: qty,
+          unit_price: unit,
+          total_price: qty * unit
+        };
+      })
+      .filter(Boolean);
 
-    const handleDelete = (id) => {
-        console.log('Delete product:', id);
-        setActiveMenu(null);
-    };
+    if (cartData.length === 0) {
+      alert('Selected items are unavailable. Please refresh stock.');
+      return;
+    }
 
-    const handleEdit = (id) => {
-        console.log('Edit product:', id);
-        setActiveMenu(null);
-    };
+    const totalAmount = cartData.reduce((sum, item) => sum + Number(item.total_price || 0), 0);
+    const totalItems = selectedIds.reduce((sum, id) => sum + Number(cartItems[id] || 0), 0);
 
-    const handleSave = (id) => {
-        console.log('Save product:', id);
-        setActiveMenu(null);
-    };
+    navigate('/inputsalesbill', { state: { cartItems: cartData, totalAmount, totalItems } });
+  };
+
 
     const handleAddToCart = (productId) => {
         setCartItems(prev => ({
@@ -83,8 +114,8 @@ const InputSales = () => {
     };
 
     const filteredData = stockData.filter(item => 
-        item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+        item.product_id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        item.product_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const totalCartItems = Object.values(cartItems).reduce((sum, qty) => sum + qty, 0);
@@ -92,29 +123,7 @@ const InputSales = () => {
     return (
         <div className="input-sales-container">
             <div className="inputsalescontainer">
-                <div className="inputsalesheader">
-                    <div 
-                        className={`inputsalesnavtab ${getActiveTab() === 'viewstock' ? 'active' : ''}`}
-                        onClick={() => navigate('/viewstock')}
-                    >
-                        <FaWarehouse className="tabicon"/>
-                        View Stock
-                    </div>
-                    <div 
-                        className={`inputsalesnavtab ${getActiveTab() === 'inputstock' ? 'active' : ''}`}
-                        onClick={() => navigate('/inputsales')}
-                    >
-                        <FaTruck className="tabicon"/>
-                        Input Sales
-                    </div>
-                    <div 
-                        className={`inputsalesnavtab ${getActiveTab() === 'salesexpiry' ? 'active' : ''}`}
-                        onClick={() => navigate('/salesexpiry')}
-                    >
-                        <FaDollarSign className="inputsalestabicon"/>
-                        Sales & Expiry
-                    </div>
-                </div>
+                <SalesNavTabs />
 
                 <div className="inputsalesheaderight">
                     <div className="inputsalessearchcontainer">
@@ -130,7 +139,7 @@ const InputSales = () => {
                         <div className="inputsalesuserlogo">
                             <FaUserAlt className="inputsalesusericon" />
                         </div>
-                        <span className="inputsalesuser-id">User ID</span>
+                        <span className="inputsalesuser-id">{getUserId()}</span>
                     </div>
                     <button className="backbtn" onClick={handleBack}>
                         <FaArrowLeft />
@@ -146,67 +155,41 @@ const InputSales = () => {
                                 <th>Product ID</th>
                                 <th>Product Name</th>
                                 <th>Qty In Stock</th>
+                                <th>Selling Price</th>
                                 <th>In Cart</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredData.map((item, index) => (
-                                <tr key={item.id}>
-                                    <td>{item.id}</td>
-                                    <td>{item.name}</td>
+                            {loading && (
+                                <tr><td colSpan="5">Loading...</td></tr>
+                            )}
+                            {error && (
+                                <tr><td colSpan="5" style={{color: 'red'}}>{error}</td></tr>
+                            )}
+                            {!loading && !error && filteredData.map((item, index) => (
+                                <tr key={item.product_id}>
+                                    <td>{item.product_id}</td>
+                                    <td>{item.product_name}</td>
                                     <td>{item.quantity}</td>
+                                    <td>K{item.selling_price}</td>
                                     <td className="qtyincart">
                                         <div className="menucontainer">
                                             <button 
                                                 className="cartsubtract"
-                                                onClick={() => handleRemoveFromCart(item.id)}
-                                                disabled={!cartItems[item.id]}
+                                                onClick={() => handleRemoveFromCart(item.product_id)}
                                             >
                                                 <FaMinus />
                                             </button>
                                             <span className="displayquantity">
-                                                {cartItems[item.id] || 0}
+                                                {cartItems[item.product_id] || 0}
                                             </span>
                                             <button 
                                                 className="cartadd"
-                                                onClick={() => handleAddToCart(item.id)}
-                                                disabled={cartItems[item.id] >= item.quantity}
+                                                onClick={() => handleAddToCart(item.product_id)}
+                                                disabled={cartItems[item.product_id] >= item.quantity}
                                             >
                                                 <FaPlus />
                                             </button>
-                                        </div>
-                                    </td>
-                                    <td className="actionscell">
-                                        <div className="menucontainer">
-                                            <button 
-                                                className="menubtn"
-                                                onClick={() => toggleMenu(index)}
-                                            >
-                                                <FaEllipsisV />
-                                            </button>
-                                            {activeMenu === index && (
-                                                <div className="actionmenu">
-                                                    <button 
-                                                        className="menuitem delete"
-                                                        onClick={() => handleDelete(item.id)}
-                                                    >
-                                                        <FaTrash /> Delete
-                                                    </button>
-                                                    <button 
-                                                        className="menuitem edit"
-                                                        onClick={() => handleEdit(item.id)}
-                                                    >
-                                                        <FaEdit /> Edit
-                                                    </button>
-                                                    <button 
-                                                        className="menuitem save"
-                                                        onClick={() => handleSave(item.id)}
-                                                    >
-                                                        <FaSave /> Save
-                                                    </button>
-                                                </div>
-                                            )}
                                         </div>
                                     </td>
                                 </tr>

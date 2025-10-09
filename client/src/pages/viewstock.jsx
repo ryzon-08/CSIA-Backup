@@ -7,16 +7,21 @@ import "./viewstock.css";
 
 const ViewStock = () => {
     const navigate = useNavigate();
+    const getUserId = () => {
+        try {
+            return localStorage.getItem('userId') || 'Guest';
+        } catch {
+            return 'Guest';
+        }
+    };
     const [searchTerm, setSearchTerm] = useState('');
     const [activeMenu, setActiveMenu] = useState(null);
 
     const [stockData, setStockData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [editRowIndex, setEditRowIndex] = useState(null);
-    const [originalProductId, setOriginalProductId] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [draft, setDraft] = useState({});
+    const [modifiedItems, setModifiedItems] = useState(new Set());
 
     const fetchStock = async () => {
         setLoading(true);
@@ -43,6 +48,11 @@ const ViewStock = () => {
         setActiveMenu(activeMenu === index ? null : index);
     };
 
+    const isMenuNearBottom = (index) => {
+        // Show menu above if it's one of the last 2 rows
+        return index >= sortedData.length - 2;
+    };
+
     const handleDelete = async (rowKey) => {
         setActiveMenu(null);
         const ok = window.confirm('Are you sure you want to delete this product?');
@@ -63,42 +73,14 @@ const ViewStock = () => {
 
     const handleEdit = (rowKey) => {
         setActiveMenu(null);
-        const rowIndex = stockData.findIndex(x => x.product_id === rowKey);
-        setEditRowIndex(rowIndex);
-        setOriginalProductId(rowKey); // Store the original product_id
         setIsEditing(true);
-        // Initialize draft with the selected row's data
-        const row = stockData[rowIndex];
-        if (!row) {
-            alert('Product not found');
-            return;
-        }
-        setDraft({
-            product_id: row.product_id ?? row.id,
-            product_name: row.product_name ?? row.name,
-            quantity: row.quantity,
-            staple: !!row.staple,
-            expiry_date: row.expiry_date ? String(row.expiry_date).substring(0,10) : '',
-            cost_price: row.cost_price ?? '',
-            selling_price: row.selling_price ?? '',
-        });
+        // Mark this item as potentially modified (so user knows they can edit it)
+        console.log('Edit mode enabled for table');
     };
 
     const handleSave = async () => {
         setActiveMenu(null);
         try {
-            console.log('Looking for editRowIndex:', editRowIndex);
-            console.log('Available items:', stockData.map(item => item.product_id));
-            
-            // Find the item being edited by index
-            const itemToSave = stockData[editRowIndex];
-            console.log('Found item:', itemToSave);
-            
-            if (!itemToSave) {
-                alert('Item not found. EditRowIndex: ' + editRowIndex);
-                return;
-            }
-
             // Validate: Check ALL staple items in the list for expiry dates
             const invalidStapleItems = stockData.filter(item => 
                 item.staple && (!item.expiry_date || item.expiry_date.trim() === '')
@@ -109,35 +91,51 @@ const ViewStock = () => {
                 return;
             }
 
-            const payload = {
-                product_id: String(itemToSave.product_id),
-                product_name: String(itemToSave.product_name),
-                quantity: Number(itemToSave.quantity),
-                cost_price: Number(itemToSave.cost_price),
-                selling_price: Number(itemToSave.selling_price),
-                staple: !!itemToSave.staple,
-                expiry_date: itemToSave.expiry_date || null,
-            };
+            // Get all modified items
+            console.log('Modified items set:', Array.from(modifiedItems));
+            console.log('Stock data product IDs:', stockData.map(item => item.product_id));
+            
+            const itemsToSave = stockData.filter(item => modifiedItems.has(item.product_id));
+            
+            console.log('Items to save:', itemsToSave.length);
+            
+            if (itemsToSave.length === 0) {
+                alert('No changes to save. Make sure you are in edit mode and have modified some fields.');
+                return;
+            }
 
-            console.log('Saving item:', itemToSave.product_id, 'with payload:', payload);
-            
-            console.log('Using original product_id for API call:', originalProductId);
-            
-            const response = await axios.put(`http://localhost:5001/api/stock/${originalProductId}`, payload, { 
-                headers: { 'Content-Type': 'application/json' } 
+            console.log('Saving', itemsToSave.length, 'modified items');
+
+            // Save all modified items
+            const savePromises = itemsToSave.map(async (item) => {
+                const payload = {
+                    product_id: String(item.product_id),
+                    product_name: String(item.product_name),
+                    quantity: Number(item.quantity),
+                    cost_price: Number(item.cost_price),
+                    selling_price: Number(item.selling_price),
+                    staple: !!item.staple,
+                    expiry_date: item.expiry_date ? String(item.expiry_date).substring(0, 10) : null,
+                };
+
+                console.log('Saving item:', item.product_id, 'with payload:', payload);
+                
+                return axios.put(`http://localhost:5001/api/stock/${item.product_id}`, payload, { 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
             });
+
+            await Promise.all(savePromises);
             
-            console.log('Save response:', response.data);
+            console.log('All items saved successfully');
             
-            // Update the local state with the response
-            setStockData(prev => prev.map(item => 
-                item.product_id === itemToSave.product_id ? response.data : item
-            ));
-            
-            setEditRowIndex(null);
-            setOriginalProductId(null);
-            setDraft({});
+            // Clear modified items and exit edit mode
+            setModifiedItems(new Set());
             setIsEditing(false);
+            
+            // Refresh data from server
+            await fetchStock();
+            
         } catch (e) {
             console.error('Save error:', e);
             console.error('Error response:', e?.response?.data);
@@ -149,9 +147,7 @@ const ViewStock = () => {
 
     const cancelEdit = () => {
         setIsEditing(false);
-        setEditRowIndex(null);
-        setOriginalProductId(null);
-        setDraft({});
+        setModifiedItems(new Set());
         fetchStock(); // Reload to get fresh data
     };
 
@@ -160,6 +156,19 @@ const ViewStock = () => {
         norm(item.product_id ?? item.id).includes(searchTerm.toLowerCase()) || 
         norm(item.product_name ?? item.name).includes(searchTerm.toLowerCase())
     );
+
+    // Ensure consistent ordering by product_id (numeric when possible)
+    const byProductId = (a, b) => {
+        const A = a.product_id ?? a.id ?? '';
+        const B = b.product_id ?? b.id ?? '';
+        const an = Number(A);
+        const bn = Number(B);
+        const aIsNum = !Number.isNaN(an) && String(A).trim() !== '';
+        const bIsNum = !Number.isNaN(bn) && String(B).trim() !== '';
+        if (aIsNum && bIsNum) return an - bn;
+        return String(A).localeCompare(String(B), undefined, { numeric: true, sensitivity: 'base' });
+    };
+    const sortedData = [...filteredData].sort(byProductId);
 
     return (
         <div onClick={(e) => {
@@ -198,7 +207,7 @@ const ViewStock = () => {
                         <div className="userlogo">
                             <FaUserAlt className="usericon" />
                         </div>
-                        <span className="user-id">User ID</span>
+                        <span className="user-id">{getUserId()}</span>
                     </div>
                     <button className="backbtn" onClick={handleBack}>
                         <FaArrowLeft />
@@ -207,7 +216,8 @@ const ViewStock = () => {
             </div>
 
             <div className="tablecontainer">
-                <table className="stocktable">
+                <div className="table-scroll-wrapper">
+                    <table className="stocktable">
                     <thead>
                         <tr>
                             <th>Product ID</th>
@@ -224,7 +234,7 @@ const ViewStock = () => {
                         {loading && (
                             <tr><td colSpan="8">Loading...</td></tr>
                         )}
-                        {!loading && filteredData.map((item, index) => (
+                        {!loading && sortedData.map((item, index) => (
                             <tr key={`row_${index}`}>
                                 <td>
                                     {isEditing ? (
@@ -234,8 +244,18 @@ const ViewStock = () => {
                                             value={item.product_id} 
                                             onChange={e => {
                                                 const newData = [...stockData];
-                                                newData[index].product_id = e.target.value;
-                                                setStockData(newData);
+                                                const key = item.product_id;
+                                                const i = newData.findIndex(x => x.product_id === key);
+                                                if (i !== -1) {
+                                                    newData[i].product_id = e.target.value;
+                                                    setStockData(newData);
+                                                    setModifiedItems(prev => {
+                                                        const newSet = new Set(prev);
+                                                        newSet.add(key);
+                                                        console.log('Added to modified items:', key, 'Set now has:', Array.from(newSet));
+                                                        return newSet;
+                                                    });
+                                                }
                                             }}
                                             onKeyDown={e => e.stopPropagation()}
                                             onFocus={e => e.stopPropagation()}
@@ -252,8 +272,17 @@ const ViewStock = () => {
                                             value={item.product_name ?? item.name} 
                                             onChange={e => {
                                                 const newData = [...stockData];
-                                                newData[index].product_name = e.target.value;
-                                                setStockData(newData);
+                                                const key = item.product_id;
+                                                const i = newData.findIndex(x => x.product_id === key);
+                                                if (i !== -1) {
+                                                    newData[i].product_name = e.target.value;
+                                                    setStockData(newData);
+                                                    setModifiedItems(prev => {
+                                                        const newSet = new Set(prev);
+                                                        newSet.add(key);
+                                                        return newSet;
+                                                    });
+                                                }
                                             }}
                                             onKeyDown={e => e.stopPropagation()}
                                             onFocus={e => e.stopPropagation()}
@@ -271,8 +300,17 @@ const ViewStock = () => {
                                             value={item.quantity} 
                                             onChange={e => {
                                                 const newData = [...stockData];
-                                                newData[index].quantity = Number(e.target.value);
-                                                setStockData(newData);
+                                                const key = item.product_id;
+                                                const i = newData.findIndex(x => x.product_id === key);
+                                                if (i !== -1) {
+                                                    newData[i].quantity = Number(e.target.value);
+                                                    setStockData(newData);
+                                                    setModifiedItems(prev => {
+                                                        const newSet = new Set(prev);
+                                                        newSet.add(key);
+                                                        return newSet;
+                                                    });
+                                                }
                                             }}
                                             onKeyDown={e => e.stopPropagation()}
                                             onFocus={e => e.stopPropagation()}
@@ -285,10 +323,16 @@ const ViewStock = () => {
                                     {isEditing ? (
                                         <input type="checkbox" checked={!!item.staple} onChange={e => {
                                             const newData = [...stockData];
-                                            const index = newData.findIndex(x => (x.id ?? x.product_id) === (item.id ?? item.product_id));
+                                            const key = item.product_id;
+                                            const index = newData.findIndex(x => x.product_id === key);
                                             if (index !== -1) {
                                                 newData[index].staple = e.target.checked;
                                                 setStockData(newData);
+                                                setModifiedItems(prev => {
+                                                    const newSet = new Set(prev);
+                                                    newSet.add(key);
+                                                    return newSet;
+                                                });
                                             }
                                         }} />
                                     ) : (
@@ -305,8 +349,17 @@ const ViewStock = () => {
                                                 value={item.expiry_date ? String(item.expiry_date).substring(0,10) : ''} 
                                                 onChange={e => {
                                                     const newData = [...stockData];
-                                                    newData[index].expiry_date = e.target.value;
-                                                    setStockData(newData);
+                                                    const key = item.product_id;
+                                                    const i = newData.findIndex(x => x.product_id === key);
+                                                    if (i !== -1) {
+                                                        newData[i].expiry_date = e.target.value;
+                                                        setStockData(newData);
+                                                        setModifiedItems(prev => {
+                                                            const newSet = new Set(prev);
+                                                            newSet.add(key);
+                                                            return newSet;
+                                                        });
+                                                    }
                                                 }}
                                                 onKeyDown={e => e.stopPropagation()}
                                                 onFocus={e => e.stopPropagation()}
@@ -328,8 +381,17 @@ const ViewStock = () => {
                                             value={item.cost_price} 
                                             onChange={e => {
                                                 const newData = [...stockData];
-                                                newData[index].cost_price = Number(e.target.value);
-                                                setStockData(newData);
+                                                const key = item.product_id;
+                                                const i = newData.findIndex(x => x.product_id === key);
+                                                if (i !== -1) {
+                                                    newData[i].cost_price = Number(e.target.value);
+                                                    setStockData(newData);
+                                                    setModifiedItems(prev => {
+                                                        const newSet = new Set(prev);
+                                                        newSet.add(key);
+                                                        return newSet;
+                                                    });
+                                                }
                                             }}
                                             onKeyDown={e => e.stopPropagation()}
                                             onFocus={e => e.stopPropagation()}
@@ -348,8 +410,17 @@ const ViewStock = () => {
                                             value={item.selling_price} 
                                             onChange={e => {
                                                 const newData = [...stockData];
-                                                newData[index].selling_price = Number(e.target.value);
-                                                setStockData(newData);
+                                                const key = item.product_id;
+                                                const i = newData.findIndex(x => x.product_id === key);
+                                                if (i !== -1) {
+                                                    newData[i].selling_price = Number(e.target.value);
+                                                    setStockData(newData);
+                                                    setModifiedItems(prev => {
+                                                        const newSet = new Set(prev);
+                                                        newSet.add(key);
+                                                        return newSet;
+                                                    });
+                                                }
                                             }}
                                             onKeyDown={e => e.stopPropagation()}
                                             onFocus={e => e.stopPropagation()}
@@ -367,7 +438,7 @@ const ViewStock = () => {
                                             <FaEllipsisV />
                                         </button>
                                         {activeMenu === index && (
-                                            <div className="actionmenu">
+                                            <div className={`actionmenu ${isMenuNearBottom(index) ? 'menu-above' : ''}`}>
                                                 <button 
                                                     className="menuitem delete"
                                                     onClick={() => handleDelete(item.product_id)}
@@ -388,11 +459,15 @@ const ViewStock = () => {
                             </tr>
                         ))}
                     </tbody>
-                </table>
+                    </table>
+                </div>
                 {isEditing && (
-                    <div style={{marginTop: '12px', display: 'flex', gap: '8px'}}>
+                    <div style={{marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center'}}>
                         <button className="savebtn" onClick={handleSave}>Save All Changes</button>
                         <button className="clearbtn" onClick={cancelEdit}>Cancel</button>
+                        <span style={{marginLeft: '15px', color: '#666', fontSize: '14px'}}>
+                            {modifiedItems.size > 0 ? `${modifiedItems.size} item(s) modified` : 'No changes yet - edit some fields above'}
+                        </span>
                     </div>
                 )}
             </div>

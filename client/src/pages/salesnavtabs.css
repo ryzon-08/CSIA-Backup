@@ -1,0 +1,16 @@
+.sales-tabs { display:flex; align-items:center; }
+.sales-tab {
+  display:flex;
+  align-items:center;
+  padding:10px 20px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  margin-right: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+}
+.sales-tab:hover { background-color: rgba(255, 255, 255, 0.3); }
+.sales-tab.active { background-color: #ffffff; color: #5a67d8; font-weight: 600; }
+
+

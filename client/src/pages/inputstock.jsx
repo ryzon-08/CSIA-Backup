@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaArrowLeft } from 'react-icons/fa';
@@ -6,6 +6,14 @@ import "./inputstock.css";
 
 const InputStock = () => {
     const navigate = useNavigate();
+
+    const getUserId = () => {
+        try {
+            return localStorage.getItem('userId') || 'Guest';
+        } catch {
+            return 'Guest';
+        }
+    };
 
     const [formData, setFormData] = useState({
         product_id: '',
@@ -20,6 +28,37 @@ const InputStock = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [loadingNextId, setLoadingNextId] = useState(false);
+
+    // Fetch next available product ID
+    const fetchNextProductId = async () => {
+        setLoadingNextId(true);
+        setError(''); // Clear any previous errors
+        try {
+            console.log('Fetching next product ID...');
+            const response = await axios.get('/api/stock/next-id');
+            console.log('Next ID response:', response.data);
+            setFormData(prev => {
+                const newData = {
+                    ...prev,
+                    product_id: response.data.nextId
+                };
+                console.log('Setting form data with new product ID:', newData);
+                return newData;
+            });
+        } catch (err) {
+            console.error('Failed to fetch next product ID:', err);
+            console.error('Error details:', err.response?.data || err.message);
+            setError(`Failed to generate product ID: ${err.response?.data?.error || err.message}. Please enter manually.`);
+        } finally {
+            setLoadingNextId(false);
+        }
+    };
+
+    // Load next product ID when component mounts
+    useEffect(() => {
+        fetchNextProductId();
+    }, []);
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -44,6 +83,12 @@ const InputStock = () => {
             return;
         }
 
+        // Validate staple products must have expiry date
+        if (formData.staple && (!formData.expiry_date || formData.expiry_date.trim() === '')) {
+            setError('Staple products must have an expiry date. Please enter an expiry date or uncheck the staple option.');
+            return;
+        }
+
         const payload = {
             product_id: String(formData.product_id),
             product_name: String(formData.product_name),
@@ -58,8 +103,10 @@ const InputStock = () => {
         try {
             await axios.post('/api/stock', payload, { headers: { 'Content-Type': 'application/json' } });
             setSuccess('Product saved successfully!');
+            // Reset form but keep the next auto-generated product ID
+            const currentProductId = formData.product_id;
             setFormData({
-                product_id: '',
+                product_id: currentProductId,
                 product_name: '',
                 quantity: '',
                 cost_price: '',
@@ -67,6 +114,8 @@ const InputStock = () => {
                 expiry_date: '',
                 staple: false
             });
+            // Fetch the next product ID for the next entry
+            fetchNextProductId();
         } catch (err) {
             const msg = err?.response?.data?.error || 'Error saving product. Please try again.';
             setError(msg);
@@ -87,6 +136,8 @@ const InputStock = () => {
         });
         setError('');
         setSuccess('');
+        // Fetch a new product ID after clearing
+        fetchNextProductId();
     };
 
     const handleBack = () => {
@@ -116,7 +167,7 @@ const InputStock = () => {
                         <div className="userlogo">
                             <FaUserAlt className="usericon" />
                         </div>
-                        <span className="user-id">User ID</span>
+                        <span className="user-id">{getUserId()}</span>
                     </div>
                     <button className="backbtn" onClick={handleBack}>
                         <FaArrowLeft />
@@ -134,6 +185,7 @@ const InputStock = () => {
                             value={formData.product_id}
                             onChange={handleInputChange}
                             className="form-input"
+                            placeholder={loadingNextId ? "Generating..." : "Auto-generated"}
                         />
                     </div>
                     

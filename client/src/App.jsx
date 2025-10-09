@@ -10,6 +10,7 @@ import InputSales from "./pages/inputsales.jsx";
 import ViewSales from "./pages/viewsales.jsx";
 import InputSalesBill from "./pages/inputsalesbill.jsx";
 import ViewExpiry from "./pages/viewexpiry.jsx";
+import SalesDetails from "./pages/salesdetails.jsx";
 
 
 
@@ -67,6 +68,12 @@ function App() {
            <Route path="/viewexpiry" element={
             <ProtectedRoute>
               <ViewExpiry/>
+            </ProtectedRoute>
+           } />
+
+           <Route path="/salesdetails" element={
+            <ProtectedRoute>
+              <SalesDetails/>
             </ProtectedRoute>
            } />
 

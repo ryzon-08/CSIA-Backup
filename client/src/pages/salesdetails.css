@@ -1,0 +1,283 @@
+/* Sales Bill Interface Styles - Matching Theme */
+
+.sales-details-container {
+  padding: 0;
+  margin: 0;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+/* Header Section - Matching Purple Theme */
+.sales-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #5a67d8;
+  margin-bottom: 20px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.sales-details-header h1 {
+  margin: 0;
+  color: white;
+  font-size: 1.8rem;
+  font-weight: normal;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.backbtn {
+  width: 35px;
+  height: 35px;
+  background-color: rgba(255, 255, 255, 0.252);
+  border-radius: 50%;
+  border: none;
+  color: white;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: all 0.3s ease;
+}
+
+.backbtn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.printbtn {
+  padding: 10px 20px;
+  background-color: rgba(255, 255, 255, 0.252);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.printbtn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Content Section */
+.sales-details-content {
+  width: 95%;
+  margin: 0 auto;
+  padding: 30px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+/* Bill Info */
+.bill-info {
+  margin-bottom: 30px;
+}
+
+.bill-header-info h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 1.5rem;
+  text-align: center;
+  font-weight: bold;
+}
+
+.bill-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.bill-meta p {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.bill-meta strong {
+  color: #5a67d8;
+  margin-right: 5px;
+}
+
+/* Bill Items Section */
+.bill-items h3 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #5a67d8;
+}
+
+/* Bill Table - Matching Theme */
+.bill-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bill-table th {
+  padding: 12px 15px;
+  text-align: left;
+  background-color: #5a67d8;
+  font-weight: bold;
+  color: white;
+  font-size: 14px;
+  border: none;
+}
+
+.bill-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  color: #333;
+  font-size: 14px;
+}
+
+.bill-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.bill-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Bill Summary */
+.bill-summary {
+  background-color: #f8f9fa;
+  padding: 20px 25px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  border: 1px solid #eee;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: #333;
+}
+
+.summary-row span:first-child {
+  font-weight: 600;
+  color: #666;
+}
+
+.summary-row.total {
+  font-size: 20px;
+  font-weight: bold;
+  color: #1cb85d;
+  border-top: 2px solid #1cb85d;
+  padding-top: 15px;
+  margin-top: 10px;
+}
+
+/* Bill Footer */
+.bill-footer {
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+}
+
+.bill-footer p {
+  margin: 0;
+  font-style: italic;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Print Styles */
+@media print {
+  .sales-details-container {
+    background: white;
+    padding: 0;
+  }
+  
+  .sales-details-header {
+    background-color: white;
+    border-bottom: 2px solid #333;
+  }
+  
+  .sales-details-header h1 {
+    color: #333;
+  }
+  
+  .header-actions {
+    display: none;
+  }
+  
+  .sales-details-content {
+    width: 100%;
+    border: none;
+    padding: 20px;
+  }
+  
+  .bill-table {
+    page-break-inside: avoid;
+  }
+  
+  .bill-table th {
+    background-color: #333 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .bill-meta,
+  .bill-summary {
+    background-color: #f8f9fa !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sales-details-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .sales-details-content {
+    width: 100%;
+    padding: 15px;
+  }
+  
+  .bill-meta {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .bill-table {
+    font-size: 12px;
+  }
+  
+  .bill-table th,
+  .bill-table td {
+    padding: 8px 10px;
+  }
+  
+  .summary-row {
+    font-size: 14px;
+  }
+  
+  .summary-row.total {
+    font-size: 18px;
+  }
+}
