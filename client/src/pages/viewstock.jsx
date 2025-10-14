@@ -1,27 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaArrowLeft, FaEllipsisV, FaTrash, FaEdit, FaSave } from 'react-icons/fa';
+import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaTrash, FaEdit, FaSave } from 'react-icons/fa';
 import axios from 'axios';
 import "./viewstock.css";
 
 
 const ViewStock = () => {
     const navigate = useNavigate();
-    const getUserId = () => {
-        try {
-            return localStorage.getItem('userId') || 'Guest';
-        } catch {
-            return 'Guest';
-        }
-    };
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeMenu, setActiveMenu] = useState(null);
 
     const [stockData, setStockData] = useState([]);
+    const [originalData, setOriginalData] = useState([]); // Store original data for comparison
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [editRowId, setEditRowId] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [modifiedItems, setModifiedItems] = useState(new Set());
+    const [draft, setDraft] = useState({});
+    const [modifiedCount, setModifiedCount] = useState(0);
+    const [selectedItems, setSelectedItems] = useState(new Set());
 
     const fetchStock = async () => {
         setLoading(true);
@@ -29,6 +25,8 @@ const ViewStock = () => {
         try {
             const res = await axios.get('http://localhost:5001/api/stock');
             setStockData(res.data);
+            setOriginalData(JSON.parse(JSON.stringify(res.data))); // Deep copy for comparison
+            setModifiedCount(0); // Reset modification count
         } catch (e) {
             setError('Failed to load stock');
         } finally {
@@ -40,135 +38,189 @@ const ViewStock = () => {
         fetchStock();
     }, []);
 
-    const handleBack = () => {
-        navigate('/dashboard');
-    };
-
-    const toggleMenu = (index) => {
-        setActiveMenu(activeMenu === index ? null : index);
-    };
-
-    const isMenuNearBottom = (index) => {
-        // Show menu above if it's one of the last 2 rows
-        return index >= sortedData.length - 2;
-    };
-
-    const handleDelete = async (rowKey) => {
-        setActiveMenu(null);
-        const ok = window.confirm('Are you sure you want to delete this product?');
-        if (!ok) return;
-        try {
-            const key = rowKey ?? null;
-            console.log('Attempting to delete with key:', key, 'Type:', typeof key);
-            if (!key) throw new Error('Missing identifier');
+    // Function to count modified items
+    const countModifiedItems = (currentData, originalData) => {
+        if (!originalData.length || !currentData.length) return 0;
+        
+        let count = 0;
+        currentData.forEach(currentItem => {
+            const originalItem = originalData.find(orig => 
+                (orig.id ?? orig.product_id) === (currentItem.id ?? currentItem.product_id)
+            );
             
-            const response = await axios.delete(`http://localhost:5001/api/stock/${key}`);
-            console.log('Delete response:', response);
-            setStockData(prev => prev.filter(item => item.product_id !== key));
-        } catch (e) {
-            console.error('Delete error:', e);
-            alert('Failed to delete: ' + (e?.response?.data?.error || e.message));
+            if (originalItem) {
+                // Check if any field has been modified
+                const isModified = 
+                    currentItem.product_id !== originalItem.product_id ||
+                    currentItem.product_name !== originalItem.product_name ||
+                    currentItem.quantity !== originalItem.quantity ||
+                    currentItem.cost_price !== originalItem.cost_price ||
+                    currentItem.selling_price !== originalItem.selling_price ||
+                    currentItem.staple !== originalItem.staple ||
+                    currentItem.expiry_date !== originalItem.expiry_date;
+                
+                if (isModified) count++;
+            }
+        });
+        
+        return count;
+    };
+
+    // Update modification count whenever stockData changes
+    useEffect(() => {
+        if (isEditing && originalData.length > 0) {
+            const count = countModifiedItems(stockData, originalData);
+            setModifiedCount(count);
+        }
+    }, [stockData, originalData, isEditing]);
+
+    // Handle checkbox selection
+    const handleItemSelection = (itemId, isChecked) => {
+        const newSelected = new Set(selectedItems);
+        if (isChecked) {
+            newSelected.add(itemId);
+        } else {
+            newSelected.delete(itemId);
+        }
+        setSelectedItems(newSelected);
+    };
+
+    // Handle select all checkbox
+    const handleSelectAll = (isChecked) => {
+        if (isChecked) {
+            const allIds = stockData.map(item => item.id ?? item.product_id);
+            setSelectedItems(new Set(allIds));
+        } else {
+            setSelectedItems(new Set());
         }
     };
 
+    // Bulk delete function
+    const handleBulkDelete = async () => {
+        if (selectedItems.size === 0) {
+            alert('Please select items to delete');
+            return;
+        }
+
+        if (!window.confirm(`Are you sure you want to delete ${selectedItems.size} selected item(s)?`)) {
+            return;
+        }
+
+        try {
+            // Delete all selected items
+            const deletePromises = Array.from(selectedItems).map(itemId =>
+                axios.delete(`http://localhost:5001/api/stock/${itemId}`)
+            );
+            
+            await Promise.all(deletePromises);
+            setSelectedItems(new Set()); // Clear selection
+            fetchStock(); // Refresh the data
+        } catch (e) {
+            console.error('Bulk delete error:', e);
+            alert('Failed to delete some items');
+        }
+    };
+
+
+
+
     const handleEdit = (rowKey) => {
-        setActiveMenu(null);
+        setEditRowId(rowKey);
         setIsEditing(true);
-        // Mark this item as potentially modified (so user knows they can edit it)
-        console.log('Edit mode enabled for table');
+        // Initialize draft with the selected row's data
+        const row = stockData.find(x => (x.id ?? x.product_id) === rowKey);
+        if (!row) {
+            alert('Product not found');
+            return;
+        }
+        setDraft({
+            product_id: row.product_id ?? row.id,
+            product_name: row.product_name ?? row.name,
+            quantity: row.quantity,
+            staple: !!row.staple,
+            expiry_date: row.expiry_date ? String(row.expiry_date).substring(0,10) : '',
+            cost_price: row.cost_price ?? '',
+            selling_price: row.selling_price ?? '',
+        });
     };
 
     const handleSave = async () => {
+        console.log('Save button clicked!');
+        console.log('Current stockData:', stockData);
         setActiveMenu(null);
+        
+        // Validation for staple/expiry date relationship
+        for (const item of stockData) {
+            // Check if item is being changed from staple to non-staple but has expiry date
+            if (!item.staple && item.expiry_date) {
+                const confirmMessage = `Product "${item.product_name}" has an expiry date but you've unticked staple. This item has expiry date, are you sure you want to continue? The expiry date will be reset.`;
+                if (!window.confirm(confirmMessage)) {
+                    return; // Cancel save operation
+                }
+                // Reset expiry date to null if user confirms
+                item.expiry_date = null;
+            }
+            
+            // Check if item is staple but has no expiry date
+            if (item.staple && (!item.expiry_date || item.expiry_date === '')) {
+                alert(`Product "${item.product_name}" is marked as staple but has no expiry date. Please enter an expiry date for staple products.`);
+                return; // Cancel save operation
+            }
+        }
+
         try {
-            // Validate: Check ALL staple items in the list for expiry dates
-            const invalidStapleItems = stockData.filter(item => 
-                item.staple && (!item.expiry_date || item.expiry_date.trim() === '')
-            );
-            
-            if (invalidStapleItems.length > 0) {
-                alert(`Please enter expiry date for all staple items. Found ${invalidStapleItems.length} staple item(s) without expiry date.`);
-                return;
-            }
-
-            // Get all modified items
-            console.log('Modified items set:', Array.from(modifiedItems));
-            console.log('Stock data product IDs:', stockData.map(item => item.product_id));
-            
-            const itemsToSave = stockData.filter(item => modifiedItems.has(item.product_id));
-            
-            console.log('Items to save:', itemsToSave.length);
-            
-            if (itemsToSave.length === 0) {
-                alert('No changes to save. Make sure you are in edit mode and have modified some fields.');
-                return;
-            }
-
-            console.log('Saving', itemsToSave.length, 'modified items');
-
-            // Save all modified items
-            const savePromises = itemsToSave.map(async (item) => {
+            // Save all modified items one by one to avoid conflicts
+            for (const item of stockData) {
                 const payload = {
-                    product_id: String(item.product_id),
-                    product_name: String(item.product_name),
+                    product_id: String(item.product_id ?? item.id),
+                    product_name: String(item.product_name ?? item.name),
                     quantity: Number(item.quantity),
                     cost_price: Number(item.cost_price),
                     selling_price: Number(item.selling_price),
                     staple: !!item.staple,
-                    expiry_date: item.expiry_date ? String(item.expiry_date).substring(0, 10) : null,
+                    expiry_date: item.expiry_date || null,
                 };
-
-                console.log('Saving item:', item.product_id, 'with payload:', payload);
                 
-                return axios.put(`http://localhost:5001/api/stock/${item.product_id}`, payload, { 
+                // Use the database ID (item.id) for the update, not product_id
+                const updateId = item.id ?? item.product_id;
+                if (!updateId) {
+                    console.error('Missing ID for item:', item);
+                    continue;
+                }
+                
+                console.log(`Updating item ${updateId} with payload:`, payload);
+                await axios.put(`http://localhost:5001/api/stock/${updateId}`, payload, { 
                     headers: { 'Content-Type': 'application/json' } 
                 });
-            });
-
-            await Promise.all(savePromises);
+            }
             
-            console.log('All items saved successfully');
-            
-            // Clear modified items and exit edit mode
-            setModifiedItems(new Set());
+            setEditRowId(null);
+            setDraft({});
             setIsEditing(false);
-            
-            // Refresh data from server
-            await fetchStock();
-            
+            // Reload data to get fresh state
+            fetchStock();
         } catch (e) {
             console.error('Save error:', e);
-            console.error('Error response:', e?.response?.data);
-            console.error('Error status:', e?.response?.status);
-            console.error('Error message:', e?.message);
-            alert('Failed to save: ' + (e?.response?.data?.error || e?.message || 'Unknown error'));
+            console.error('Error response:', e.response?.data);
+            alert(e?.response?.data?.error || 'Failed to save changes');
         }
     };
 
     const cancelEdit = () => {
+        console.log('Cancel button clicked!');
         setIsEditing(false);
-        setModifiedItems(new Set());
+        setEditRowId(null);
+        setDraft({});
+        setSelectedItems(new Set()); // Clear selections
         fetchStock(); // Reload to get fresh data
     };
+
 
     const norm = v => (v ?? '').toString().toLowerCase();
     const filteredData = stockData.filter(item => 
         norm(item.product_id ?? item.id).includes(searchTerm.toLowerCase()) || 
         norm(item.product_name ?? item.name).includes(searchTerm.toLowerCase())
     );
-
-    // Ensure consistent ordering by product_id (numeric when possible)
-    const byProductId = (a, b) => {
-        const A = a.product_id ?? a.id ?? '';
-        const B = b.product_id ?? b.id ?? '';
-        const an = Number(A);
-        const bn = Number(B);
-        const aIsNum = !Number.isNaN(an) && String(A).trim() !== '';
-        const bIsNum = !Number.isNaN(bn) && String(B).trim() !== '';
-        if (aIsNum && bIsNum) return an - bn;
-        return String(A).localeCompare(String(B), undefined, { numeric: true, sensitivity: 'base' });
-    };
-    const sortedData = [...filteredData].sort(byProductId);
 
     return (
         <div onClick={(e) => {
@@ -193,7 +245,7 @@ const ViewStock = () => {
                     </div>
                 </div>
 
-                <div className="headeright">
+                <div className="header-center">
                     <div className="searchcontainer">
                         <input
                             type="text"
@@ -203,15 +255,15 @@ const ViewStock = () => {
                             className="searchinput"
                         />
                     </div>
+                </div>
+
+                <div className="headeright">
                     <div className="usersection">
                         <div className="userlogo">
                             <FaUserAlt className="usericon" />
                         </div>
-                        <span className="user-id">{getUserId()}</span>
+                        <span className="user-id">{localStorage.getItem('userId') || 'admin'}</span>
                     </div>
-                    <button className="backbtn" onClick={handleBack}>
-                        <FaArrowLeft />
-                    </button>
                 </div>
             </div>
 
@@ -220,6 +272,15 @@ const ViewStock = () => {
                     <table className="stocktable">
                     <thead>
                         <tr>
+                            {isEditing && (
+                                <th>
+                                    <input 
+                                        type="checkbox" 
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                        checked={selectedItems.size > 0 && selectedItems.size === stockData.length}
+                                    />
+                                </th>
+                            )}
                             <th>Product ID</th>
                             <th>Product Name</th>
                             <th>Quantity</th>
@@ -234,87 +295,55 @@ const ViewStock = () => {
                         {loading && (
                             <tr><td colSpan="8">Loading...</td></tr>
                         )}
-                        {!loading && sortedData.map((item, index) => (
-                            <tr key={`row_${index}`}>
+                        {!loading && filteredData.map((item, index) => (
+                            <tr key={(item.id ?? item.product_id ?? index)}>
+                                {isEditing && (
+                                    <td>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedItems.has(item.id ?? item.product_id)}
+                                            onChange={(e) => handleItemSelection(item.id ?? item.product_id, e.target.checked)}
+                                        />
+                                    </td>
+                                )}
                                 <td>
                                     {isEditing ? (
-                                        <input 
-                                            key={`product_id_input_${index}`}
-                                            className="tableinput" 
-                                            value={item.product_id} 
-                                            onChange={e => {
-                                                const newData = [...stockData];
-                                                const key = item.product_id;
-                                                const i = newData.findIndex(x => x.product_id === key);
-                                                if (i !== -1) {
-                                                    newData[i].product_id = e.target.value;
-                                                    setStockData(newData);
-                                                    setModifiedItems(prev => {
-                                                        const newSet = new Set(prev);
-                                                        newSet.add(key);
-                                                        console.log('Added to modified items:', key, 'Set now has:', Array.from(newSet));
-                                                        return newSet;
-                                                    });
-                                                }
-                                            }}
-                                            onKeyDown={e => e.stopPropagation()}
-                                            onFocus={e => e.stopPropagation()}
-                                        />
+                                        <input className="tableinput" value={item.product_id ?? item.id} onChange={e => {
+                                            const newData = [...stockData];
+                                            const index = newData.findIndex(x => (x.id ?? x.product_id) === (item.id ?? item.product_id));
+                                            if (index !== -1) {
+                                                newData[index].product_id = e.target.value;
+                                                setStockData(newData);
+                                            }
+                                        }} />
                                     ) : (
-                                        item.product_id
+                                        item.product_id ?? item.id
                                     )}
                                 </td>
                                 <td>
                                     {isEditing ? (
-                                        <input 
-                                            key={`product_name_input_${index}`}
-                                            className="tableinput" 
-                                            value={item.product_name ?? item.name} 
-                                            onChange={e => {
-                                                const newData = [...stockData];
-                                                const key = item.product_id;
-                                                const i = newData.findIndex(x => x.product_id === key);
-                                                if (i !== -1) {
-                                                    newData[i].product_name = e.target.value;
-                                                    setStockData(newData);
-                                                    setModifiedItems(prev => {
-                                                        const newSet = new Set(prev);
-                                                        newSet.add(key);
-                                                        return newSet;
-                                                    });
-                                                }
-                                            }}
-                                            onKeyDown={e => e.stopPropagation()}
-                                            onFocus={e => e.stopPropagation()}
-                                        />
+                                        <input className="tableinput" value={item.product_name ?? item.name} onChange={e => {
+                                            const newData = [...stockData];
+                                            const index = newData.findIndex(x => (x.id ?? x.product_id) === (item.id ?? item.product_id));
+                                            if (index !== -1) {
+                                                newData[index].product_name = e.target.value;
+                                                setStockData(newData);
+                                            }
+                                        }} />
                                     ) : (
                                         item.product_name ?? item.name
                                     )}
                                 </td>
                                 <td>
                                     {isEditing ? (
-                                        <input 
-                                            key={`quantity_input_${index}`}
-                                            type="number" 
-                                            className="tableinput" 
-                                            value={item.quantity} 
-                                            onChange={e => {
-                                                const newData = [...stockData];
-                                                const key = item.product_id;
-                                                const i = newData.findIndex(x => x.product_id === key);
-                                                if (i !== -1) {
-                                                    newData[i].quantity = Number(e.target.value);
-                                                    setStockData(newData);
-                                                    setModifiedItems(prev => {
-                                                        const newSet = new Set(prev);
-                                                        newSet.add(key);
-                                                        return newSet;
-                                                    });
-                                                }
-                                            }}
-                                            onKeyDown={e => e.stopPropagation()}
-                                            onFocus={e => e.stopPropagation()}
-                                        />
+                                        <input type="number" className="tableinput" value={item.quantity} onChange={e => {
+                                            const newData = [...stockData];
+                                            const index = newData.findIndex(x => (x.id ?? x.product_id) === (item.id ?? item.product_id));
+                                            if (index !== -1) {
+                                                newData[index].quantity = Number(e.target.value);
+                                                setStockData(newData);
+                                            }
+                                        }} />
                                     ) : (
                                         item.quantity
                                     )}
@@ -323,16 +352,10 @@ const ViewStock = () => {
                                     {isEditing ? (
                                         <input type="checkbox" checked={!!item.staple} onChange={e => {
                                             const newData = [...stockData];
-                                            const key = item.product_id;
-                                            const index = newData.findIndex(x => x.product_id === key);
+                                            const index = newData.findIndex(x => (x.id ?? x.product_id) === (item.id ?? item.product_id));
                                             if (index !== -1) {
                                                 newData[index].staple = e.target.checked;
                                                 setStockData(newData);
-                                                setModifiedItems(prev => {
-                                                    const newSet = new Set(prev);
-                                                    newSet.add(key);
-                                                    return newSet;
-                                                });
                                             }
                                         }} />
                                     ) : (
@@ -341,120 +364,54 @@ const ViewStock = () => {
                                 </td>
                                 <td>
                                     {isEditing ? (
-                                        item.staple ? (
-                                            <input 
-                                                key={`expiry_date_input_${index}`}
-                                                type="date" 
-                                                className="tableinput" 
-                                                value={item.expiry_date ? String(item.expiry_date).substring(0,10) : ''} 
-                                                onChange={e => {
-                                                    const newData = [...stockData];
-                                                    const key = item.product_id;
-                                                    const i = newData.findIndex(x => x.product_id === key);
-                                                    if (i !== -1) {
-                                                        newData[i].expiry_date = e.target.value;
-                                                        setStockData(newData);
-                                                        setModifiedItems(prev => {
-                                                            const newSet = new Set(prev);
-                                                            newSet.add(key);
-                                                            return newSet;
-                                                        });
-                                                    }
-                                                }}
-                                                onKeyDown={e => e.stopPropagation()}
-                                                onFocus={e => e.stopPropagation()}
-                                            />
-                                        ) : (
-                                            <span style={{ color: '#999', fontStyle: 'italic' }}>Not a staple item</span>
-                                        )
+                                        <input type="date" className="tableinput" value={item.expiry_date ? String(item.expiry_date).substring(0,10) : ''} onChange={e => {
+                                            const newData = [...stockData];
+                                            const index = newData.findIndex(x => (x.id ?? x.product_id) === (item.id ?? item.product_id));
+                                            if (index !== -1) {
+                                                newData[index].expiry_date = e.target.value;
+                                                setStockData(newData);
+                                            }
+                                        }} />
                                     ) : (
-                                        item.expiry_date ? String(item.expiry_date).substring(0,10) : ''
+                                        item.staple ? (item.expiry_date ? new Date(item.expiry_date).toLocaleDateString() : '') : ''
                                     )}
                                 </td>
                                 <td>
                                     {isEditing ? (
-                                        <input 
-                                            key={`cost_price_input_${index}`}
-                                            type="number" 
-                                            step="0.01" 
-                                            className="tableinput" 
-                                            value={item.cost_price} 
-                                            onChange={e => {
-                                                const newData = [...stockData];
-                                                const key = item.product_id;
-                                                const i = newData.findIndex(x => x.product_id === key);
-                                                if (i !== -1) {
-                                                    newData[i].cost_price = Number(e.target.value);
-                                                    setStockData(newData);
-                                                    setModifiedItems(prev => {
-                                                        const newSet = new Set(prev);
-                                                        newSet.add(key);
-                                                        return newSet;
-                                                    });
-                                                }
-                                            }}
-                                            onKeyDown={e => e.stopPropagation()}
-                                            onFocus={e => e.stopPropagation()}
-                                        />
+                                        <input type="number" step="0.01" className="tableinput" value={item.cost_price} onChange={e => {
+                                            const newData = [...stockData];
+                                            const index = newData.findIndex(x => (x.id ?? x.product_id) === (item.id ?? item.product_id));
+                                            if (index !== -1) {
+                                                newData[index].cost_price = Number(e.target.value);
+                                                setStockData(newData);
+                                            }
+                                        }} />
                                     ) : (
                                         item.cost_price
                                     )}
                                 </td>
                                 <td>
                                     {isEditing ? (
-                                        <input 
-                                            key={`selling_price_input_${index}`}
-                                            type="number" 
-                                            step="0.01" 
-                                            className="tableinput" 
-                                            value={item.selling_price} 
-                                            onChange={e => {
-                                                const newData = [...stockData];
-                                                const key = item.product_id;
-                                                const i = newData.findIndex(x => x.product_id === key);
-                                                if (i !== -1) {
-                                                    newData[i].selling_price = Number(e.target.value);
-                                                    setStockData(newData);
-                                                    setModifiedItems(prev => {
-                                                        const newSet = new Set(prev);
-                                                        newSet.add(key);
-                                                        return newSet;
-                                                    });
-                                                }
-                                            }}
-                                            onKeyDown={e => e.stopPropagation()}
-                                            onFocus={e => e.stopPropagation()}
-                                        />
+                                        <input type="number" step="0.01" className="tableinput" value={item.selling_price} onChange={e => {
+                                            const newData = [...stockData];
+                                            const index = newData.findIndex(x => (x.id ?? x.product_id) === (item.id ?? item.product_id));
+                                            if (index !== -1) {
+                                                newData[index].selling_price = Number(e.target.value);
+                                                setStockData(newData);
+                                            }
+                                        }} />
                                     ) : (
                                         item.selling_price
                                     )}
                                 </td>
                                 <td className="actionscell">
-                                    <div className="menucontainer">
-                                        <button 
-                                            className="menubtn"
-                                            onClick={() => toggleMenu(index)}
-                                        >
-                                            <FaEllipsisV />
-                                        </button>
-                                        {activeMenu === index && (
-                                            <div className={`actionmenu ${isMenuNearBottom(index) ? 'menu-above' : ''}`}>
-                                                <button 
-                                                    className="menuitem delete"
-                                                    onClick={() => handleDelete(item.product_id)}
-                                                >
-                                                    <FaTrash /> Delete
-                                                </button>
-                                                <button 
-                                                    className="menuitem edit"
-                                                    onClick={() => handleEdit(item.product_id)}
-                                                >
-                                                    <FaEdit /> Edit
-                                                </button>
-                                                {/* Save button removed from menu */}
-                                            </div>
-                                        )}
-                                    </div>
+                                    <button 
+                                        className="editbtn"
+                                        onClick={() => handleEdit(item.id ?? item.product_id)}
+                                        title="Edit Item"
+                                    >
+                                        <FaEdit />
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -462,12 +419,22 @@ const ViewStock = () => {
                     </table>
                 </div>
                 {isEditing && (
-                    <div style={{marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center'}}>
+                    <div className="edit-buttons-container">
+                        <div className="modification-counter">
+                            {modifiedCount} item{modifiedCount !== 1 ? 's' : ''} modified
+                        </div>
+                        {selectedItems.size > 0 && (
+                            <div className="selected-counter">
+                                {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+                            </div>
+                        )}
+                        {selectedItems.size > 0 && (
+                            <button className="deletebtn" onClick={handleBulkDelete}>
+                                <FaTrash /> Delete Selected
+                            </button>
+                        )}
                         <button className="savebtn" onClick={handleSave}>Save All Changes</button>
                         <button className="clearbtn" onClick={cancelEdit}>Cancel</button>
-                        <span style={{marginLeft: '15px', color: '#666', fontSize: '14px'}}>
-                            {modifiedItems.size > 0 ? `${modifiedItems.size} item(s) modified` : 'No changes yet - edit some fields above'}
-                        </span>
                     </div>
                 )}
             </div>

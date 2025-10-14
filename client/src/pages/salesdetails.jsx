@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaArrowLeft, FaPrint, FaUserAlt } from 'react-icons/fa';
+import { FaPrint, FaUserAlt } from 'react-icons/fa';
 import axios from 'axios';
 import "./salesdetails.css";
 
@@ -58,7 +58,7 @@ const SalesDetails = () => {
         <div className="sales-details-header">
           <h1>Sale Not Found</h1>
           <button className="backbtn" onClick={handleBack}>
-            <FaArrowLeft />
+            ←
           </button>
         </div>
       </div>
@@ -71,7 +71,7 @@ const SalesDetails = () => {
         <div className="sales-details-header">
           <h1>Loading Sale Details...</h1>
           <button className="backbtn" onClick={handleBack}>
-            <FaArrowLeft />
+            ←
           </button>
         </div>
       </div>
@@ -84,7 +84,7 @@ const SalesDetails = () => {
         <div className="sales-details-header">
           <h1>Error: {error}</h1>
           <button className="backbtn" onClick={handleBack}>
-            <FaArrowLeft />
+            ←
           </button>
         </div>
       </div>
@@ -100,7 +100,7 @@ const SalesDetails = () => {
             <FaPrint /> Print
           </button>
           <button className="backbtn" onClick={handleBack}>
-            <FaArrowLeft />
+            ←
           </button>
         </div>
       </div>
@@ -159,9 +159,6 @@ const SalesDetails = () => {
           </div>
         </div>
 
-        <div className="bill-footer">
-          <p>Thank you for your business!</p>
-        </div>
       </div>
     </div>
   );

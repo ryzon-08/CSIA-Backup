@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaArrowLeft, FaSave, FaTimes } from 'react-icons/fa';
+import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaSave, FaTimes } from 'react-icons/fa';
 import axios from 'axios';
 import "./inputsalesbill.css";
 
@@ -47,8 +47,8 @@ const InputSalesBill = () => {
       console.log('Sale saved successfully:', response.data);
       alert('Sale saved successfully!');
       
-      // Navigate back to input sales
-      navigate('/inputsales');
+      // Navigate back to input sales with a flag to refresh stock
+      navigate('/inputsales', { state: { refreshStock: true } });
       
     } catch (error) {
       console.error('Failed to save sale:', error);
@@ -70,7 +70,7 @@ const InputSalesBill = () => {
         <div className="bill-header">
           <h1>No items in cart</h1>
           <button className="backbtn" onClick={handleBack}>
-            <FaArrowLeft />
+            ←
           </button>
         </div>
       </div>
@@ -82,11 +82,8 @@ const InputSalesBill = () => {
       <div className="bill-header">
         <h1>Sales Bill</h1>
         <div className="bill-actions">
-          <button className="cancelbtn" onClick={handleCancel}>
-            <FaTimes /> Cancel
-          </button>
           <button className="backbtn" onClick={handleBack}>
-            <FaArrowLeft />
+            ←
           </button>
         </div>
       </div>

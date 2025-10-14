@@ -88,15 +88,6 @@ body {
   cursor: pointer;
 }
 
-.backbtn svg {
-  color: #ffffff;
-  font-size: 14px;
-}
-
-.backbtn:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
 
 .form-container {
   width: 95%;
@@ -165,6 +156,9 @@ body {
 }
 
 .checkboxhint {
+
+
+
   font-size: 12px;
   color: #666;
   font-style: italic;

@@ -9,9 +9,9 @@ const InputStock = () => {
 
     const getUserId = () => {
         try {
-            return localStorage.getItem('userId') || 'Guest';
+            return localStorage.getItem('userId') || 'admin';
         } catch {
-            return 'Guest';
+            return 'admin';
         }
     };
 
@@ -188,7 +188,7 @@ const InputStock = () => {
                             placeholder={loadingNextId ? "Generating..." : "Auto-generated"}
                         />
                     </div>
-                    
+
                     <div className="form-group">
                         <label>Product Name:</label>
                         <input
@@ -254,7 +254,7 @@ const InputStock = () => {
                             disabled={!formData.staple}
                         />
                     </div>
-                    
+
                     <div className="formgroup checkboxgroup">
                         <label className="checkboxlabel">
                             <input

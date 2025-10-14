@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaUserAlt, FaArrowLeft, FaMinus, FaPlus } from 'react-icons/fa';
+import { FaUserAlt, FaMinus, FaPlus } from 'react-icons/fa';
 import SalesNavTabs from './components/SalesNavTabs';
 import axios from 'axios';
 import "./inputsales.css";
@@ -10,9 +10,9 @@ const InputSales = () => {
     const location = useLocation();
     const getUserId = () => {
         try {
-            return localStorage.getItem('userId') || 'Guest';
+            return localStorage.getItem('userId') || 'admin';
         } catch {
-            return 'Guest';
+            return 'admin';
         }
     };
     const [searchTerm, setSearchTerm] = useState('');
@@ -40,6 +40,16 @@ const InputSales = () => {
         fetchStock();
     }, []);
 
+    // Check if we need to refresh stock after a successful sale
+    useEffect(() => {
+        if (location.state?.refreshStock) {
+            console.log('Refreshing stock after successful sale');
+            fetchStock();
+            // Clear the state to prevent repeated refreshes
+            navigate('/inputsales', { replace: true, state: {} });
+        }
+    }, [location.state, navigate]);
+
     // Determine which tab is active based on current route
     const getActiveTab = () => {
         const path = location.pathname;
@@ -50,7 +60,7 @@ const InputSales = () => {
     };
 
     const handleBack = () => {
-        navigate('/dashboard');
+        navigate('/salesexpiry');
     };
 
   const handleProceedToBill = () => {
@@ -90,9 +100,20 @@ const InputSales = () => {
 
 
     const handleAddToCart = (productId) => {
+        // Find the product in stock
+        const product = stockData.find(item => String(item.product_id) === String(productId));
+        if (!product) return;
+        
+        // Check if we have enough stock
+        const currentCartQty = cartItems[productId] || 0;
+        if (currentCartQty >= product.quantity) {
+            alert('Not enough stock available');
+            return;
+        }
+        
         setCartItems(prev => ({
             ...prev,
-            [productId]: (prev[productId] || 0) + 1
+            [productId]: currentCartQty + 1
         }));
     };
 
@@ -142,14 +163,15 @@ const InputSales = () => {
                         <span className="inputsalesuser-id">{getUserId()}</span>
                     </div>
                     <button className="backbtn" onClick={handleBack}>
-                        <FaArrowLeft />
+                        ←
                     </button>
                 </div>
             </div>
 
             <div className="saleslayout">
                 <div className="tablecontainer">
-                    <table className="salestable">
+                    <div className="table-scroll-wrapper">
+                        <table className="salestable">
                         <thead>
                             <tr>
                                 <th>Product ID</th>
@@ -166,11 +188,14 @@ const InputSales = () => {
                             {error && (
                                 <tr><td colSpan="5" style={{color: 'red'}}>{error}</td></tr>
                             )}
-                            {!loading && !error && filteredData.map((item, index) => (
+                            {!loading && !error && filteredData.map((item, index) => {
+                                const cartQty = cartItems[item.product_id] || 0;
+                                const currentQty = Math.max(0, item.quantity - cartQty);
+                                return (
                                 <tr key={item.product_id}>
                                     <td>{item.product_id}</td>
                                     <td>{item.product_name}</td>
-                                    <td>{item.quantity}</td>
+                                    <td>{currentQty}</td>
                                     <td>K{item.selling_price}</td>
                                     <td className="qtyincart">
                                         <div className="menucontainer">
@@ -186,16 +211,18 @@ const InputSales = () => {
                                             <button 
                                                 className="cartadd"
                                                 onClick={() => handleAddToCart(item.product_id)}
-                                                disabled={cartItems[item.product_id] >= item.quantity}
+                                                disabled={currentQty <= 0}
                                             >
                                                 <FaPlus />
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
-                    </table>
+                        </table>
+                    </div>
                 </div>
 
                 <div className="sidebar">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaUserAlt, FaArrowLeft, FaFilter } from 'react-icons/fa';
+import { FaUserAlt, FaFilter } from 'react-icons/fa';
 import SalesNavTabs from './components/SalesNavTabs';
 import axios from 'axios';
 import "./viewsales.css";
@@ -9,9 +9,9 @@ const ViewSales = () => {
     const navigate = useNavigate();
     const getUserId = () => {
         try {
-            return localStorage.getItem('userId') || 'Guest';
+            return localStorage.getItem('userId') || 'admin';
         } catch {
-            return 'Guest';
+            return 'admin';
         }
     };
     const [filterOpen, setFilterOpen] = useState(false);
@@ -126,7 +126,7 @@ const ViewSales = () => {
                         <span className="user-id">{getUserId()}</span>
                     </div>
                     <button className="backbtn" onClick={handleBack}>
-                        <FaArrowLeft />
+                        ←
                     </button>
                 </div>
             </div>
@@ -137,24 +137,24 @@ const ViewSales = () => {
                 </div>
 
                 <div className="tablecontainer">
-                    <table className="salestable">
+                    <div className="table-scroll-wrapper">
+                        <table className="salestable">
                         <thead>
                             <tr>
                                 <th>Date Sold:</th>
                                 <th>No. of Items</th>
                                 <th>Total Bill</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading && (
-                                <tr><td colSpan="4">Loading...</td></tr>
+                                <tr><td colSpan="3">Loading...</td></tr>
                             )}
                             {error && (
-                                <tr><td colSpan="4" style={{color: 'red'}}>{error}</td></tr>
+                                <tr><td colSpan="3" style={{color: 'red'}}>{error}</td></tr>
                             )}
                             {!loading && !error && salesData.length === 0 && (
-                                <tr><td colSpan="4">No sales yet</td></tr>
+                                <tr><td colSpan="3">No sales yet</td></tr>
                             )}
                             {!loading && !error && salesData
                               .filter(s => isWithinFilter(s.sale_date || s.created_at))
@@ -168,25 +168,11 @@ const ViewSales = () => {
                                     <td>{formatDate(sale.sale_date || sale.created_at)}</td>
                                     <td>{Number(sale.total_items || 0)}</td>
                                     <td>K{Number(sale.total_amount || 0).toFixed(2)}</td>
-                                    <td>
-                                        <button
-                                            className="viewbtn"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (window.confirm('Delete this sale?')) {
-                                                    axios.delete(`http://localhost:5001/api/sales/${sale.sale_id}`)
-                                                      .then(() => fetchSales())
-                                                      .catch(err => alert('Failed to delete: ' + (err?.response?.data?.error || err.message)));
-                                                }
-                                            }}
-                                        >
-                                            Delete
-                                        </button>
-                                    </td>
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

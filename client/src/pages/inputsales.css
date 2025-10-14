@@ -1,4 +1,15 @@
 /* InputSales Component Scoped Styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+}
+
 .input-sales-container {
   margin: 0;
   padding: 0;
@@ -8,9 +19,9 @@
 .input-sales-container .inputsalescontainer {
   display: flex;
   justify-content: space-between;
-  padding: 15px 20px;
-  width: 92%;
-  margin-left: 20px;
+  padding: 8px 20px; /* A bit taller - 8px above and below nav tabs */
+  width: 96%;
+  margin: 10px auto; /* Reduced top margin to move header higher */
   border-radius: 15px;
   background-color: #5a67d8;
   margin-bottom: 20px;
@@ -110,16 +121,18 @@
   width: 35px;
   height: 35px;
   border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
+  background-color: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white !important;
   cursor: pointer;
   transition: background-color 0.2s;
-}
-
-.input-sales-container .backbtn svg {
-  color: #ffffff;
-  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  line-height: 1 !important;
+  text-align: center;
 }
 
 .input-sales-container .backbtn:hover {
@@ -129,18 +142,26 @@
 .input-sales-container .saleslayout {
   display: flex;
   gap: 20px;
-  width: 95%;
+  width: 96%;
   margin: 0 auto;
-  margin-left: 20px;
 }
 
 .input-sales-container .tablecontainer {
   flex: 1;
   background-color: white;
   border: 1px solid #ddd;
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: 12px;
+  height: auto; /* Remove fixed height */
+  overflow: hidden; /* Hide any overflow that could show sharp corners */
+  position: relative;
   margin-bottom: 20px;
+}
+
+.input-sales-container .table-scroll-wrapper {
+  max-height: 75vh; /* Increased height to make container longer */
+  overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  border-radius: 12px; /* Match parent container */
 }
 
 .input-sales-container .salestable {
@@ -312,9 +333,16 @@
 
 .input-sales-container .sidebar {
   width: 200px;
+  height: 200px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
+  padding: 15px; /* Reduced padding to prevent overflow */
+  background-color: #f8f9fa; /* Light background */
+  border-radius: 12px; /* Curved corners */
+  margin: 20px 0; /* Space above and below */
+  border: 1px solid #ddd; /* Subtle border */
+  overflow: hidden; /* Prevent child elements from showing sharp corners */
 }
 
 .input-sales-container .cartinfo {
@@ -330,7 +358,7 @@
   font-weight: bold;
   color: #333;
   padding: 10px;
-  background-color: #f8f9fa;
+  background-color: #ffffff;
   border-radius: 5px;
 }
 
@@ -341,7 +369,7 @@
 }
 
 .input-sales-container .clearbtn {
-  padding: 12px 20px;
+  padding: 15px 20px;
   background-color: #dc3545;
   color: white;
   border: none;

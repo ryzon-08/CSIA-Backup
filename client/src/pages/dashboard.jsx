@@ -37,7 +37,7 @@ return (
             <div className="userlogo">
                 <FaUserAlt />
             </div>
-            <span className="user-id">User ID</span>
+            <span className="user-id">admin</span>
         </div>
       </div>
     

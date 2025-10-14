@@ -4,7 +4,6 @@ import { FaMoneyBillTrendUp } from "react-icons/fa6";
 import { AiOutlineStock } from "react-icons/ai";
 import { FaUserAlt } from "react-icons/fa";
 import { FaHourglassHalf } from "react-icons/fa";
-import {FaArrowLeft } from 'react-icons/fa';
 import {useNavigate} from "react-router-dom";
 import "./salesexpiry.css";
 
@@ -41,14 +40,14 @@ const SalesDashboard = () => {
 return (
     <div className="salesdashcontainer">
       <button className="backbtn" onClick={handleBack}>
-          <FaArrowLeft />
+          ←
         </button>
       <div className="salesdashheader">
         <div className="salesusersection">
             <div className="salesuserlogo">
                 <FaUserAlt />
             </div>
-            <span className="user-id">User ID</span>
+            <span className="user-id">admin</span>
         </div>
       </div>
     

@@ -1,8 +1,89 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  overflow: hidden; /* Prevent page scrolling */
+  height: 100vh; /* Lock to viewport height */
+}
+
+html {
+  overflow: hidden; /* Prevent page scrolling */
+  height: 100vh; /* Lock to viewport height */
+}
 
 .view-expiry-container {
   margin: 0;
   padding: 0;
   font-family: Arial, sans-serif;
+}
+
+.viewexpirycontainer {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 20px;
+  width: 92%;
+  margin: 20px auto 20px auto; /* Center the container and prevent overflow */
+  border-radius: 15px;
+  background-color: #5a67d8;
+}
+
+.headeright {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.usersection {
+  display: flex;
+  align-items: center;
+  padding: 8px 15px;
+  margin-right: 15px;
+  margin-left: 25px;
+  width: auto;
+  gap: 8px;
+}
+
+.userlogo {
+  width: 30px;
+  height: 30px;
+  background-color: rgba(255, 255, 255, 0.252);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1px;
+}
+
+.usericon {
+  color: white;
+  font-size: 14px;
+}
+
+.user-id {
+  color: white;
+  font-size: 14px;
+}
+
+.backbtn {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  line-height: 1 !important;
+  text-align: center;
+}
+
+.backbtn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .view-expiry-container .header {
@@ -107,7 +188,6 @@
   width: 95%;
   margin: 0 auto;
   position: relative;
-  margin-left: 20px;
 }
 
 .view-expiry-container .search-section {
@@ -150,6 +230,23 @@
   border-color: #5a67d8;
 }
 
+.view-expiry-container .search-input {
+  padding: 10px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  transition: border-color 0.2s;
+  min-width: 200px;
+  margin-left: 10px;
+}
+
+.view-expiry-container .search-input:focus {
+  outline: none;
+  border-color: #5a67d8;
+}
+
 .view-expiry-container .search-button {
   display: flex;
   align-items: center;
@@ -173,10 +270,33 @@
   font-size: 12px;
 }
 
+.view-expiry-container .cancel-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background-color: #dc3545;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-left: 10px;
+}
+
+.view-expiry-container .cancel-button:hover {
+  background-color: #c82333;
+}
+
+.view-expiry-container .cancel-icon {
+  font-size: 12px;
+}
+
 .view-expiry-container .search-description {
   color: #666;
   font-size: 14px;
-  font-style: italic;
   margin: 0;
 }
 
@@ -217,8 +337,9 @@
   background-color: white;
   border: 1px solid #ddd;
   border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 25px;
+  position: relative;
+  margin-bottom: 20px;
+  overflow: hidden; /* Clip content to respect border-radius */
 }
 
 .view-expiry-container .table-header {
@@ -226,6 +347,11 @@
   grid-template-columns: 1fr 2fr 1fr 1.5fr;
   background-color: #f8f9fa;
   border-bottom: 2px solid #ddd;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .view-expiry-container .table-header > div {
@@ -236,8 +362,12 @@
 }
 
 .view-expiry-container .table-body {
-  max-height: 400px;
+  max-height: 400px; /* Limit height to allow scrolling */
   overflow-y: auto;
+  overflow-x: auto;
+  margin-top: 2px; /* 2px grey space from top */
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 .view-expiry-container .table-row {
@@ -246,6 +376,10 @@
   border-bottom: 1px solid #eee;
   transition: background-color 0.2s;
   cursor: pointer;
+}
+
+.view-expiry-container .table-row:last-child {
+  border-bottom: none; /* Remove border from last row for clean rounded corners */
 }
 
 .view-expiry-container .table-row:hover {
@@ -277,7 +411,6 @@
   padding: 40px 20px;
   text-align: center;
   color: #666;
-  font-style: italic;
 }
 
 .view-expiry-container .no-results p {

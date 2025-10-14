@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaUserAlt, FaArrowLeft, FaSearch, FaBox, FaClock } from 'react-icons/fa';
+import { FaUserAlt, FaSearch, FaBox, FaClock, FaTimes } from 'react-icons/fa';
 import SalesNavTabs from './components/SalesNavTabs';
 import axios from 'axios';
 import './viewexpiry.css';
@@ -9,17 +9,19 @@ const ViewExpiry = () => {
     const navigate = useNavigate();
     const getUserId = () => {
         try {
-            return localStorage.getItem('userId') || 'Guest';
+            return localStorage.getItem('userId') || 'admin';
         } catch {
-            return 'Guest';
+            return 'admin';
         }
     };
     const [expiryDate, setExpiryDate] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
-    const [showResults, setShowResults] = useState(false);
+    const [showResults, setShowResults] = useState(true); // Show results by default
     const [stockData, setStockData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isSearchActive, setIsSearchActive] = useState(false);
 
     // Fetch stock data from API
     const fetchStock = async () => {
@@ -27,9 +29,17 @@ const ViewExpiry = () => {
         setError('');
         try {
             const response = await axios.get('http://localhost:5001/api/stock');
-            // Filter only staple items
-            const stapleItems = response.data.filter(item => item.staple);
+            // Filter only staple items and sort by expiry date (earliest first)
+            const stapleItems = response.data
+                .filter(item => item.staple)
+                .sort((a, b) => {
+                    if (!a.expiry_date && !b.expiry_date) return 0;
+                    if (!a.expiry_date) return 1; // Items without expiry date go to end
+                    if (!b.expiry_date) return -1;
+                    return new Date(a.expiry_date) - new Date(b.expiry_date);
+                });
             setStockData(stapleItems);
+            setFilteredProducts(stapleItems); // Set default display
         } catch (e) {
             console.error('Fetch stock failed:', e);
             setError('Failed to load stock data');
@@ -47,28 +57,52 @@ const ViewExpiry = () => {
     };
 
     const handleSearch = () => {
-        if (!expiryDate) {
-            alert('Please enter an expiry date');
+        if (!expiryDate && !searchTerm.trim()) {
+            alert('Please enter either an expiry date or search for a product');
             return;
         }
 
-        const searchDate = new Date(expiryDate);
+        let filtered = [...stockData];
 
-        const filtered = stockData.filter(product => {
-            if (!product.expiry_date) return false;
-            const productExpiryDate = new Date(product.expiry_date);
-            
-            return productExpiryDate <= searchDate;
-        });
+        // Apply expiry date filter if provided
+        if (expiryDate) {
+            const searchDate = new Date(expiryDate);
+            filtered = filtered.filter(product => {
+                if (!product.expiry_date) return false;
+                const productExpiryDate = new Date(product.expiry_date);
+                return productExpiryDate <= searchDate;
+            });
+        }
+
+        // Apply search term filter if provided
+        if (searchTerm.trim()) {
+            filtered = filtered.filter(product => 
+                product.product_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                product.product_name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
 
         setFilteredProducts(filtered);
         setShowResults(true);
+        setIsSearchActive(true);
     };
 
     const handleDateChange = (e) => {
         setExpiryDate(e.target.value);
-        setShowResults(false);
-        setFilteredProducts([]);
+    };
+
+    const handleCancelSearch = () => {
+        setExpiryDate('');
+        setSearchTerm('');
+        setIsSearchActive(false);
+        // Reset to show all staple products sorted by expiry date
+        const sortedStapleItems = [...stockData].sort((a, b) => {
+            if (!a.expiry_date && !b.expiry_date) return 0;
+            if (!a.expiry_date) return 1;
+            if (!b.expiry_date) return -1;
+            return new Date(a.expiry_date) - new Date(b.expiry_date);
+        });
+        setFilteredProducts(sortedStapleItems);
     };
 
     const formatDisplayDate = (dateStr) => {
@@ -83,20 +117,19 @@ const ViewExpiry = () => {
 
     return (
         <div className="view-expiry-container">
-            <div className="viewstockcontainer">
-                <div className="viewstockheader">
-                    <SalesNavTabs />
-                    <div className="headeright">
-                        <div className="usersection">
-                            <div className="userlogo">
-                                <FaUserAlt className="usericon" />
-                            </div>
-                            <span className="user-id">{getUserId()}</span>
+            <div className="viewexpirycontainer">
+                <SalesNavTabs />
+
+                <div className="headeright">
+                    <div className="usersection">
+                        <div className="userlogo">
+                            <FaUserAlt className="usericon" />
                         </div>
-                        <button className="backbtn" onClick={handleBack}>
-                            <FaArrowLeft />
-                        </button>
+                        <span className="user-id">{getUserId()}</span>
                     </div>
+                    <button className="backbtn" onClick={handleBack}>
+                        ←
+                    </button>
                 </div>
             </div>
 
@@ -105,33 +138,36 @@ const ViewExpiry = () => {
 
                 <div className="search-section">
                     <div className="search-container">
-                        <label className="search-label">Enter Expiry Date:</label>
+                        <label className="search-label">Enter Expiry Date (optional):</label>
                         <input
                             type="date"
                             className="date-input"
                             value={expiryDate}
                             onChange={handleDateChange}
+                            placeholder="Optional"
+                        />
+                        <input
+                            type="text"
+                            className="search-input"
+                            placeholder="Search by Product ID or Name (optional)"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                         <button onClick={handleSearch} className="search-button">
                             <FaSearch className="search-icon" />
                             Search
                         </button>
+                        {isSearchActive && (
+                            <button onClick={handleCancelSearch} className="cancel-button">
+                                <FaTimes className="cancel-icon" />
+                                Cancel
+                            </button>
+                        )}
                     </div>
                     <p className="search-description">
-                        User enters expiry date first then products are displayed
+                        Search by expiry date, product ID/name, or both
                     </p>
                 </div>
-
-                {!showResults && (
-                    <div className="search-display">
-                        <div className="search-icon-container">
-                            <FaSearch className="large-search-icon" />
-                            <FaBox className="box-icon" />
-                        </div>
-                        <p className="search-text">Enter a date above to search for expiring products</p>
-                    </div>
-                )}
-
 
                 {showResults && (
                     <div className="results-section">
@@ -174,9 +210,6 @@ const ViewExpiry = () => {
                 )}
 
 
-                <div className="hourglass-container">
-                    <FaClock className="hourglass-icon" />
-                </div>
             </div>
         </div>
     );

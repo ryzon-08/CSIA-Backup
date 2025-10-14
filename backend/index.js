@@ -152,7 +152,7 @@ app.get('/', (req, res) => {
   res.send('Backend is running. Using csia database.');
 });
 
-// --- STOCK API ROUTES ---
+//STOCK API ROUTES 
 
 // DB health check
 app.get('/api/health/db', (req, res) => {
@@ -185,6 +185,28 @@ app.get('/api/stock', (req, res) => {
   });
 });
 
+// Get next available product ID
+app.get('/api/stock/next-id', (req, res) => {
+  db.query('SELECT product_id FROM stock ORDER BY CAST(product_id AS UNSIGNED) DESC LIMIT 1', (err, results) => {
+    if (err) {
+      console.error('Error fetching next product ID:', err);
+      return res.status(500).json({ error: 'Failed to generate next product ID' });
+    }
+    
+    let nextId = '001'; // Default starting ID
+    
+    if (results.length > 0) {
+      const lastId = results[0].product_id;
+      const numericPart = parseInt(lastId, 10);
+      const nextNumeric = numericPart + 1;
+      nextId = nextNumeric.toString().padStart(3, '0');
+    }
+    
+    console.log('Generated next product ID:', nextId);
+    res.json({ nextId });
+  });
+});
+
 // Get single stock item (for debugging)
 app.get('/api/stock/:id', (req, res) => {
   const id = req.params.id;
@@ -204,6 +226,16 @@ app.post('/api/stock', (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  // Format expiry_date for MySQL
+  let formattedExpiryDate = null;
+  if (expiry_date) {
+    // Convert ISO date string to MySQL date format (YYYY-MM-DD)
+    const date = new Date(expiry_date);
+    if (!isNaN(date.getTime())) {
+      formattedExpiryDate = date.toISOString().split('T')[0]; // Gets YYYY-MM-DD
+    }
+  }
+
   const values = [
     String(product_id),
     String(product_name),
@@ -211,7 +243,7 @@ app.post('/api/stock', (req, res) => {
     Number(cost_price),
     Number(selling_price),
     staple ? 1 : 0,
-    expiry_date || null,
+    formattedExpiryDate,
   ];
 
   const sql = 'INSERT INTO stock (product_id, product_name, quantity, cost_price, selling_price, staple, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?)';
@@ -225,43 +257,67 @@ app.post('/api/stock', (req, res) => {
   });
 });
 
-// Update a stock item by product_id
+// Update a stock item by database ID
 app.put('/api/stock/:id', (req, res) => {
-  const originalProductId = req.params.id;
+  const databaseId = req.params.id;
   const { product_id, product_name, quantity, cost_price, selling_price, staple, expiry_date } = req.body;
 
   console.log('=== UPDATE REQUEST ===');
-  console.log('Original Product ID:', originalProductId);
-  console.log('New Product ID:', product_id);
+  console.log('Database ID:', databaseId);
+  console.log('Product ID:', product_id);
   console.log('Update data:', req.body);
 
-  if (!originalProductId) return res.status(400).json({ error: 'Invalid original product_id' });
+  if (!databaseId) return res.status(400).json({ error: 'Invalid database ID' });
   if (!product_id || !product_name || quantity === undefined || cost_price === undefined || selling_price === undefined) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // Check if the new product_id already exists (and it's different from the original)
-  if (product_id !== originalProductId) {
-    console.log('Checking if new product_id already exists...');
-    db.query('SELECT product_id FROM stock WHERE product_id = ?', [product_id], (err, existing) => {
-      if (err) {
-        console.error('Check existing product_id failed:', err);
-        return res.status(500).json({ error: String(err) });
-      }
-      if (existing.length > 0) {
-        console.log('Product ID already exists:', product_id);
-        return res.status(400).json({ error: 'Product ID already exists' });
-      }
-      
-      // Proceed with update
+  // First get the current product_id for this database ID
+  db.query('SELECT product_id FROM stock WHERE id = ?', [databaseId], (err, currentRecord) => {
+    if (err) {
+      console.error('Failed to get current record:', err);
+      return res.status(500).json({ error: String(err) });
+    }
+    
+    if (currentRecord.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    const currentProductId = currentRecord[0].product_id;
+
+    // Check if the new product_id already exists (and it's different from the current one)
+    if (product_id !== currentProductId) {
+      console.log('Checking if new product_id already exists...');
+      db.query('SELECT product_id FROM stock WHERE product_id = ? AND id != ?', [product_id, databaseId], (err, existing) => {
+        if (err) {
+          console.error('Check existing product_id failed:', err);
+          return res.status(500).json({ error: String(err) });
+        }
+        if (existing.length > 0) {
+          console.log('Product ID already exists:', product_id);
+          return res.status(400).json({ error: 'Product ID already exists' });
+        }
+        
+        // Proceed with update
+        performUpdate();
+      });
+    } else {
+      // Same product_id, just update other fields
       performUpdate();
-    });
-  } else {
-    // Same product_id, just update other fields
-    performUpdate();
-  }
+    }
+  });
 
   function performUpdate() {
+    // Format expiry_date for MySQL
+    let formattedExpiryDate = null;
+    if (expiry_date) {
+      // Convert ISO date string to MySQL date format (YYYY-MM-DD)
+      const date = new Date(expiry_date);
+      if (!isNaN(date.getTime())) {
+        formattedExpiryDate = date.toISOString().split('T')[0]; // Gets YYYY-MM-DD
+      }
+    }
+
     const values = [
       String(product_id),
       String(product_name),
@@ -269,14 +325,14 @@ app.put('/api/stock/:id', (req, res) => {
       Number(cost_price),
       Number(selling_price),
       staple ? 1 : 0,
-      expiry_date || null,
-      String(originalProductId), 
+      formattedExpiryDate,
+      Number(databaseId), 
     ];
 
     const sql = `
       UPDATE stock
       SET product_id = ?, product_name = ?, quantity = ?, cost_price = ?, selling_price = ?, staple = ?, expiry_date = ?
-      WHERE product_id = ?
+      WHERE id = ?
     `;
 
     console.log('Executing update query:', sql, 'with values:', values);
@@ -293,20 +349,20 @@ app.put('/api/stock/:id', (req, res) => {
   }
 });
 
-// Delete a stock item by product_id
+// Delete a stock item by database ID
 app.delete('/api/stock/:id', (req, res) => {
-  const productId = req.params.id;
+  const databaseId = req.params.id;
   console.log('=== DELETE REQUEST ===');
-  console.log('Product ID received:', productId, 'Type:', typeof productId);
+  console.log('Database ID received:', databaseId, 'Type:', typeof databaseId);
   
-  if (!productId) {
-    console.log('No Product ID provided');
-    return res.status(400).json({ error: 'Invalid product_id' });
+  if (!databaseId) {
+    console.log('No Database ID provided');
+    return res.status(400).json({ error: 'Invalid database ID' });
   }
 
-  // Delete by product_id only (since there's no id column)
-  console.log('Attempting delete by product_id:', productId);
-  db.query('DELETE FROM stock WHERE product_id = ?', [productId], (err, result) => {
+  // Delete by database id
+  console.log('Attempting delete by database ID:', databaseId);
+  db.query('DELETE FROM stock WHERE id = ?', [Number(databaseId)], (err, result) => {
     if (err) {
       console.error('Delete error:', err);
       return res.status(500).json({ error: 'Delete failed: ' + String(err) });
