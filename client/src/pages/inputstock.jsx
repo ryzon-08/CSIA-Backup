@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaArrowLeft } from 'react-icons/fa';
@@ -29,15 +29,27 @@ const InputStock = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loadingNextId, setLoadingNextId] = useState(false);
+    const [searchResults, setSearchResults] = useState([]);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [activeField, setActiveField] = useState(null);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const dropdownRef = useRef(null);
+    const productNameRef = useRef(null);
+    const productIdRef = useRef(null);
 
     // Fetch next available product ID
+    //Auto-generate product ID
+
+
     const fetchNextProductId = async () => {
         setLoadingNextId(true);
         setError(''); // Clear any previous errors
         try {
             console.log('Fetching next product ID...');
+            //API CALL
             const response = await axios.get('/api/stock/next-id');
             console.log('Next ID response:', response.data);
+            // Update form data with the new product ID while preserving other fields
             setFormData(prev => {
                 const newData = {
                     ...prev,
@@ -47,13 +59,71 @@ const InputStock = () => {
                 return newData;
             });
         } catch (err) {
+            //Error handling
             console.error('Failed to fetch next product ID:', err);
             console.error('Error details:', err.response?.data || err.message);
             setError(`Failed to generate product ID: ${err.response?.data?.error || err.message}. Please enter manually.`);
         } finally {
+            //Reset loading state
             setLoadingNextId(false);
         }
     };
+
+    // Search for products
+    const searchProducts = async (query) => {
+        if (!query || query.length < 1) {
+            setSearchResults([]);
+            setShowDropdown(false);
+            return;
+        }
+
+        setSearchLoading(true);
+        try {
+            const response = await axios.get(`/api/stock/search?q=${encodeURIComponent(query)}`);
+            setSearchResults(response.data);
+            setShowDropdown(response.data.length > 0);
+        } catch (err) {
+            console.error('Search failed:', err);
+            setSearchResults([]);
+            setShowDropdown(false);
+        } finally {
+            setSearchLoading(false);
+        }
+    };
+
+    // Handle product selection from dropdown
+    const handleProductSelect = (product) => {
+        setFormData(prev => ({
+            ...prev,
+            product_id: product.product_id,
+            product_name: product.product_name,
+            cost_price: product.cost_price,
+            selling_price: product.selling_price,
+            expiry_date: product.expiry_date || '',
+            staple: product.staple,
+            // Keep quantity empty as user is adding stock
+        }));
+        setShowDropdown(false);
+        setSearchResults([]);
+        setActiveField(null);
+    };
+
+    // Handle click outside to close dropdown
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
+                productNameRef.current && !productNameRef.current.contains(event.target) &&
+                productIdRef.current && !productIdRef.current.contains(event.target)) {
+                setShowDropdown(false);
+                setActiveField(null);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     // Load next product ID when component mounts
     useEffect(() => {
@@ -66,6 +136,12 @@ const InputStock = () => {
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+
+        // Trigger search when typing in product name or product ID
+        if (name === 'product_name' || name === 'product_id') {
+            setActiveField(name);
+            searchProducts(value);
+        }
     };
 
     const handleSave = async () => {
@@ -88,7 +164,8 @@ const InputStock = () => {
             setError('Staple products must have an expiry date. Please enter an expiry date or uncheck the staple option.');
             return;
         }
-
+        //Data Transformation
+        //Ensure numeric fields are numbers
         const payload = {
             product_id: String(formData.product_id),
             product_name: String(formData.product_name),
@@ -98,11 +175,40 @@ const InputStock = () => {
             expiry_date: formData.expiry_date || null,
             staple: !!formData.staple,
         };
-
         setLoading(true);
         try {
-            await axios.post('/api/stock', payload, { headers: { 'Content-Type': 'application/json' } });
-            setSuccess('Product saved successfully!');
+            // First check if product already exists
+            const existingResponse = await axios.get(`/api/stock/search?q=${encodeURIComponent(formData.product_id)}`);
+            const existingProduct = existingResponse.data.find(p => p.product_id === formData.product_id);
+
+            if (existingProduct) {
+                // Product exists - update existing product
+                const updatedPayload = {
+                    ...payload,
+                    quantity: existingProduct.quantity + Number(formData.quantity) // Add to existing stock
+                };
+
+                // Count how many fields are being changed
+                let changesCount = 1; // quantity is always changed
+                if (Number(formData.cost_price) !== Number(existingProduct.cost_price)) changesCount++;
+                if (Number(formData.selling_price) !== Number(existingProduct.selling_price)) changesCount++;
+                if (formData.product_name !== existingProduct.product_name) changesCount++;
+                if (!!formData.staple !== !!existingProduct.staple) changesCount++;
+                const existingExpiry = existingProduct.expiry_date || '';
+                const newExpiry = formData.expiry_date || '';
+                if (existingExpiry !== newExpiry) changesCount++;
+
+                await axios.put(`/api/stock/${existingProduct.id}`, updatedPayload, {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                setSuccess(changesCount === 1 ? 'Change saved successfully!' : 'Changes saved successfully!');
+            } else {
+                // Product doesn't exist - create new product
+                await axios.post('/api/stock', payload, { headers: { 'Content-Type': 'application/json' } });
+                setSuccess('New product created successfully!');
+            }
+
             // Reset form but keep the next auto-generated product ID
             const currentProductId = formData.product_id;
             setFormData({
@@ -117,6 +223,7 @@ const InputStock = () => {
             // Fetch the next product ID for the next entry
             fetchNextProductId();
         } catch (err) {
+            //Error handling
             const msg = err?.response?.data?.error || 'Error saving product. Please try again.';
             setError(msg);
         } finally {
@@ -145,19 +252,19 @@ const InputStock = () => {
     };
 
     return (
-        <div>
+        <div className="page-wrapper">
             <div className="inputstockcontainer">
                 <div className="inputstockheader">
                     <div className="navtab active">
-                        <FaTruck className="tabicon"/>
+                        <FaTruck className="tabicon" />
                         Input Stock
                     </div>
                     <div className="navtab" onClick={() => navigate('/viewstock')}>
-                        <FaWarehouse className="tabicon"/>
+                        <FaWarehouse className="tabicon" />
                         View Stock
                     </div>
                     <div className="navtab" onClick={() => navigate('/salesexpiry')}>
-                        <FaDollarSign className="tabicon"/>
+                        <FaDollarSign className="tabicon" />
                         Sales & Expiry
                     </div>
                 </div>
@@ -177,27 +284,84 @@ const InputStock = () => {
 
             <div className="form-container">
                 <div className="form-row">
-                    <div className="form-group">
+                    <div className="form-group form-group-dropdown">
                         <label>Product ID:</label>
                         <input
+                            ref={productIdRef}
                             type="text"
                             name="product_id"
                             value={formData.product_id}
                             onChange={handleInputChange}
                             className="form-input"
-                            placeholder={loadingNextId ? "Generating..." : "Auto-generated"}
+                            placeholder={loadingNextId ? "Generating..." : "Auto-generated or search existing"}
+                            autoComplete="off"
                         />
+                        {showDropdown && activeField === 'product_id' && (
+                            <div ref={dropdownRef} className="search-dropdown">
+                                {searchLoading ? (
+                                    <div className="dropdown-item loading">Searching...</div>
+                                ) : searchResults.length > 0 ? (
+                                    searchResults.map((product) => (
+                                        <div
+                                            key={product.id}
+                                            className="dropdown-item"
+                                            onClick={() => handleProductSelect(product)}
+                                        >
+                                            <div className="product-info">
+                                                <span className="product-name">{product.product_name}</span>
+                                                <span className="product-id">ID: {product.product_id}</span>
+                                            </div>
+                                            <div className="product-details">
+                                                <span className="product-price">K{product.selling_price}</span>
+                                                <span className="product-stock">Stock: {product.quantity}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="dropdown-item no-results">No products found</div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="form-group">
+                    <div className="form-group form-group-dropdown">
                         <label>Product Name:</label>
                         <input
+                            ref={productNameRef}
                             type="text"
                             name="product_name"
                             value={formData.product_name}
                             onChange={handleInputChange}
                             className="form-input"
+                            placeholder="Enter new product or search for existing product"
+                            autoComplete="off"
                         />
+                        {showDropdown && activeField === 'product_name' && (
+                            <div ref={dropdownRef} className="search-dropdown">
+                                {searchLoading ? (
+                                    <div className="dropdown-item loading">Searching...</div>
+                                ) : searchResults.length > 0 ? (
+                                    searchResults.map((product) => (
+                                        <div
+                                            key={product.id}
+                                            className="dropdown-item"
+                                            onClick={() => handleProductSelect(product)}
+                                        >
+                                            <div className="product-info">
+                                                <span className="product-name">{product.product_name}</span>
+                                                <span className="product-id">ID: {product.product_id}</span>
+                                            </div>
+                                            <div className="product-details">
+                                                <span className="product-price">K{product.selling_price}</span>
+                                                <span className="product-stock">Stock: {product.quantity}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="dropdown-item no-results">No products found</div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -282,8 +446,8 @@ const InputStock = () => {
                     </button>
                 </div>
 
-                {error && <div style={{color: 'red', marginTop: '10px'}}>{error}</div>}
-                {success && <div style={{color: 'green', marginTop: '10px'}}>{success}</div>}
+                {error && <div className="error-message">{error}</div>}
+                {success && <div className="success-message">{success}</div>}
             </div>
         </div>
     );

@@ -207,6 +207,25 @@ app.get('/api/stock/next-id', (req, res) => {
   });
 });
 
+// Search products by name or product_id (for autocomplete)
+app.get('/api/stock/search', (req, res) => {
+  const query = req.query.q;
+  if (!query) {
+    return res.status(400).json({ error: 'Search query is required' });
+  }
+  
+  const searchTerm = `%${query}%`;
+  const sql = 'SELECT * FROM stock WHERE product_name LIKE ? OR product_id LIKE ? ORDER BY product_name ASC LIMIT 10';
+  
+  db.query(sql, [searchTerm, searchTerm], (err, results) => {
+    if (err) {
+      console.error('Product search failed:', err);
+      return res.status(500).json({ error: String(err) });
+    }
+    res.json(results);
+  });
+});
+
 // Get single stock item (for debugging)
 app.get('/api/stock/:id', (req, res) => {
   const id = req.params.id;
