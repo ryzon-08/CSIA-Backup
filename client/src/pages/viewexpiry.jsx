@@ -149,7 +149,7 @@ const ViewExpiry = () => {
                         <input
                             type="text"
                             className="search-input"
-                            placeholder="Search by Product ID or Name (optional)"
+                            placeholder="Search by Product ID or Name"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />

@@ -14,7 +14,7 @@ html {
 .viewsalescontainer {
   display: flex;
   justify-content: space-between;
-  padding: 15px 20px;
+  padding: 20px 20px;
   width: 96%;
   margin: 20px auto;
   border-radius: 15px;

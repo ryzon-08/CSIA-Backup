@@ -82,6 +82,7 @@ const InputSales = () => {
           product_name: String(product.product_name),
           quantity: qty,
           unit_price: unit,
+          cost_price: Number(product.cost_price || 0),
           total_price: qty * unit
         };
       })

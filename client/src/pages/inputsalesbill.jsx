@@ -21,6 +21,7 @@ const InputSalesBill = () => {
   };
 
   const handleSave = async () => {
+    //Validate cart items before saving
     if (!cartItems || cartItems.length === 0) {
       alert('No items to save');
       return;
@@ -30,7 +31,8 @@ const InputSalesBill = () => {
     try {
       // Generate a unique sale ID
       const saleId = `SALE_${Date.now()}`;
-      
+
+      //Prepare sale data payload
       const saleData = {
         sale_id: saleId,
         total_amount: totalAmount,
@@ -51,9 +53,11 @@ const InputSalesBill = () => {
       navigate('/inputsales', { state: { refreshStock: true } });
       
     } catch (error) {
+      //Handle errors during save operation
       console.error('Failed to save sale:', error);
       alert('Failed to save sale: ' + (error?.response?.data?.error || error.message));
     } finally {
+      //Always reset saving state reglardless of the outcome
       setSaving(false);
     }
   };

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaTrash, FaEdit, FaSave } from 'react-icons/fa';
+import { FaTruck, FaWarehouse, FaDollarSign, FaUserAlt, FaTrash, FaEdit, FaSave, FaArrowLeft } from 'react-icons/fa';
 import axios from 'axios';
 import "./viewstock.css";
 
@@ -147,7 +147,6 @@ const ViewStock = () => {
     const handleSave = async () => {
         console.log('Save button clicked!');
         console.log('Current stockData:', stockData);
-        setActiveMenu(null);
         
         // Validation for staple/expiry date relationship
         for (const item of stockData) {
@@ -255,6 +254,12 @@ const ViewStock = () => {
                             className="searchinput"
                         />
                     </div>
+                </div>
+
+                <div className="header-center">
+                    <button className="backbtn" onClick={() => navigate('/dashboard')}>
+                        ←
+                    </button>
                 </div>
 
                 <div className="headeright">

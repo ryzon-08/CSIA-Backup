@@ -47,6 +47,20 @@ const db = mysql.createConnection({
   database: process.env.DB_NAME || 'csia',
 });
 
+// Function to populate legacy cost prices
+function populateLegacyCostPrices() {
+  console.log('Populating legacy cost prices...');
+  // Update all sale_items with cost_price = 0 to use 60% of unit_price as estimated cost
+  const updateSql = "UPDATE sale_items SET cost_price = unit_price * 0.6 WHERE cost_price = 0";
+  db.query(updateSql, (updateErr, updateResult) => {
+    if (updateErr) {
+      console.error('Failed to populate legacy cost prices:', updateErr);
+    } else {
+      console.log(`Populated cost prices for ${updateResult.affectedRows} legacy sale items`);
+    }
+  });
+}
+
 // Connect to MySQL
 db.connect((err) => {
   if (err) {
@@ -133,6 +147,7 @@ db.connect((err) => {
         product_name VARCHAR(255) NOT NULL,
         quantity INT NOT NULL,
         unit_price DECIMAL(10,2) NOT NULL,
+        cost_price DECIMAL(10,2) NOT NULL,
         total_price DECIMAL(10,2) NOT NULL,
         FOREIGN KEY (sale_id) REFERENCES sales(sale_id) ON DELETE CASCADE
       )
@@ -142,6 +157,32 @@ db.connect((err) => {
         console.error('Failed to ensure sale_items table exists:', createErr);
       } else {
         console.log('Ensured sale_items table exists.');
+        // Check if cost_price column exists, add it if not
+        db.query("SHOW COLUMNS FROM sale_items", (colErr, colRows) => {
+          if (colErr) {
+            console.error('Failed to inspect sale_items columns:', colErr);
+            return;
+          }
+          const columnNames = Array.isArray(colRows) ? colRows.map(r => r.Field) : [];
+          if (!columnNames.includes('cost_price')) {
+            db.query("ALTER TABLE sale_items ADD COLUMN cost_price DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER unit_price", (alterErr) => {
+              if (alterErr) {
+                console.error('Failed to add cost_price column:', alterErr);
+              } else {
+                console.log('Added cost_price column to sale_items table');
+                // Populate existing sales with estimated cost prices (60% of selling price)
+                populateLegacyCostPrices();
+              }
+            });
+          } else {
+            // Check if we need to populate legacy cost prices
+            db.query("SELECT COUNT(*) as count FROM sale_items WHERE cost_price = 0", (countErr, countResult) => {
+              if (!countErr && countResult[0].count > 0) {
+                populateLegacyCostPrices();
+              }
+            });
+          }
+        });
       }
     });
   }
@@ -455,6 +496,123 @@ app.get('/api/sales/:saleId', (req, res) => {
   });
 });
 
+// Manual endpoint to fix legacy cost prices (run once)
+app.post('/api/sales/fix-legacy-costs', (req, res) => {
+  console.log('Manually fixing legacy cost prices...');
+  
+  // First, populate any zero cost_price with 60% of unit_price
+  const updateSql = "UPDATE sale_items SET cost_price = unit_price * 0.6 WHERE cost_price = 0";
+  db.query(updateSql, (updateErr, updateResult) => {
+    if (updateErr) {
+      console.error('Failed to fix legacy cost prices:', updateErr);
+      return res.status(500).json({ error: 'Failed to fix legacy costs' });
+    }
+    
+    console.log(`Fixed cost prices for ${updateResult.affectedRows} legacy sale items`);
+    res.json({ 
+      success: true, 
+      message: `Fixed ${updateResult.affectedRows} legacy sale items`,
+      affectedRows: updateResult.affectedRows 
+    });
+  });
+});
+
+// Get sale analytics (profit/loss analysis)
+app.get('/api/sales/:saleId/analytics', (req, res) => {
+  const saleId = req.params.saleId;
+  
+  // Get sale details with analytics
+  const saleSql = 'SELECT * FROM sales WHERE sale_id = ?';
+  db.query(saleSql, [saleId], (err, saleResult) => {
+    if (err) {
+      console.error('Get sale failed:', err);
+      return res.status(500).json({ error: String(err) });
+    }
+    
+    if (saleResult.length === 0) {
+      return res.status(404).json({ error: 'Sale not found' });
+    }
+    
+    // Get sale items with cost analysis
+    const itemsSql = 'SELECT * FROM sale_items WHERE sale_id = ?';
+    db.query(itemsSql, [saleId], (err, itemsResult) => {
+      if (err) {
+        console.error('Get sale items failed:', err);
+        return res.status(500).json({ error: String(err) });
+      }
+      
+      // Check if this sale has zero cost prices and fix them
+      const hasZeroCosts = itemsResult.some(item => Number(item.cost_price || 0) === 0);
+      
+      if (hasZeroCosts) {
+        // Fix the cost prices for this sale using 60% of unit price
+        const fixPromises = itemsResult.map(item => {
+          if (Number(item.cost_price || 0) === 0) {
+            const estimatedCost = Number(item.unit_price) * 0.6;
+            return new Promise((resolve, reject) => {
+              const fixSql = 'UPDATE sale_items SET cost_price = ? WHERE id = ?';
+              db.query(fixSql, [estimatedCost, item.id], (err, result) => {
+                if (err) reject(err);
+                else {
+                  item.cost_price = estimatedCost;
+                  resolve(result);
+                }
+              });
+            });
+          }
+          return Promise.resolve();
+        });
+        
+        Promise.all(fixPromises).then(() => {
+          calculateAndSendAnalytics();
+        }).catch(err => {
+          console.error('Failed to fix cost prices:', err);
+          calculateAndSendAnalytics(); // Send anyway with current data
+        });
+      } else {
+        calculateAndSendAnalytics();
+      }
+      
+      function calculateAndSendAnalytics() {
+        // Calculate analytics using stored cost_price data
+        let totalRevenue = 0;
+        let totalCost = 0;
+        const itemAnalytics = itemsResult.map(item => {
+          const revenue = Number(item.total_price);
+          const costPrice = Number(item.cost_price || 0);
+          const cost = costPrice * Number(item.quantity);
+          const profit = revenue - cost;
+          const profitMargin = revenue > 0 ? ((profit / revenue) * 100) : 0;
+          
+          totalRevenue += revenue;
+          totalCost += cost;
+          
+          return {
+            ...item,
+            cost_total: cost,
+            profit: profit,
+            profit_margin: profitMargin
+          };
+        });
+        
+        const totalProfit = totalRevenue - totalCost;
+        const overallProfitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0;
+        
+        res.json({
+          sale: saleResult[0],
+          items: itemAnalytics,
+          analytics: {
+            total_revenue: totalRevenue,
+            total_cost: totalCost,
+            total_profit: totalProfit,
+            profit_margin: overallProfitMargin
+          }
+        });
+      }
+    });
+  });
+});
+
 // Create a new sale
 app.post('/api/sales', (req, res) => {
   // Accept both camelCase and snake_case from frontend
@@ -487,8 +645,8 @@ app.post('/api/sales', (req, res) => {
       // Insert sale items
       const itemPromises = items.map(item => {
         return new Promise((resolve, reject) => {
-          const itemSql = 'INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?, ?)';
-          db.query(itemSql, [saleId, item.product_id, item.product_name, item.quantity, item.unit_price, item.total_price], (err, itemResult) => {
+          const itemSql = 'INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, cost_price, total_price) VALUES (?, ?, ?, ?, ?, ?, ?)';
+          db.query(itemSql, [saleId, item.product_id, item.product_name, item.quantity, item.unit_price, item.cost_price, item.total_price], (err, itemResult) => {
             if (err) {
               reject(err);
             } else {

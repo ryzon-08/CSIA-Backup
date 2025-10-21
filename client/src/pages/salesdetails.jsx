@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaPrint, FaUserAlt } from 'react-icons/fa';
+import { FaPrint, FaUserAlt, FaChartLine } from 'react-icons/fa';
 import axios from 'axios';
 import "./salesdetails.css";
 
@@ -10,7 +10,10 @@ const SalesDetails = () => {
   const { sale } = location.state || {};
   
   const [saleDetails, setSaleDetails] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -18,6 +21,17 @@ const SalesDetails = () => {
       fetchSaleDetails(sale.sale_id);
     }
   }, [sale]);
+
+  // Enable scrolling for this page
+  useEffect(() => {
+    document.body.classList.add('sales-details-page');
+    document.documentElement.classList.add('sales-details-page');
+    
+    return () => {
+      document.body.classList.remove('sales-details-page');
+      document.documentElement.classList.remove('sales-details-page');
+    };
+  }, []);
 
   const fetchSaleDetails = async (saleId) => {
     setLoading(true);
@@ -30,6 +44,20 @@ const SalesDetails = () => {
       setError('Failed to load sale details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAnalytics = async (saleId) => {
+    setAnalyticsLoading(true);
+    try {
+      const response = await axios.get(`http://localhost:5001/api/sales/${saleId}/analytics`);
+      setAnalytics(response.data);
+      setShowAnalytics(true);
+    } catch (e) {
+      console.error('Fetch analytics failed:', e);
+      alert('Failed to load analytics data');
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -96,6 +124,9 @@ const SalesDetails = () => {
       <div className="sales-details-header">
         <h1>Sale Details - {sale?.sale_id || 'Unknown'}</h1>
         <div className="header-actions">
+          <button className="analyticsbtn" onClick={() => fetchAnalytics(sale?.sale_id)} disabled={analyticsLoading}>
+            <FaChartLine /> {analyticsLoading ? 'Loading...' : 'Analytics'}
+          </button>
           <button className="printbtn" onClick={handlePrint}>
             <FaPrint /> Print
           </button>
@@ -158,6 +189,72 @@ const SalesDetails = () => {
             <span>K{Number(sale?.total_amount || 0).toFixed(2)}</span>
           </div>
         </div>
+
+        {showAnalytics && analytics && (
+          <div className="analytics-section">
+            <div className="analytics-header">
+              <h3>Sale Analytics</h3>
+              <button className="close-analytics" onClick={() => setShowAnalytics(false)}>×</button>
+            </div>
+            
+
+            
+            <div className="analytics-summary">
+              <div className="analytics-card">
+                <h4>Revenue</h4>
+                <p className="amount revenue">K{Number(analytics.analytics?.total_revenue || 0).toFixed(2)}</p>
+              </div>
+              <div className="analytics-card">
+                <h4>Cost</h4>
+                <p className="amount cost">K{Number(analytics.analytics?.total_cost || 0).toFixed(2)}</p>
+              </div>
+              <div className="analytics-card">
+                <h4>Profit</h4>
+                <p className={`amount ${analytics.analytics?.total_profit >= 0 ? 'profit' : 'loss'}`}>
+                  K{Number(analytics.analytics?.total_profit || 0).toFixed(2)}
+                </p>
+              </div>
+              <div className="analytics-card">
+                <h4>Profit Margin</h4>
+                <p className={`amount ${analytics.analytics?.profit_margin >= 0 ? 'profit' : 'loss'}`}>
+                  {Number(analytics.analytics?.profit_margin || 0).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
+            <div className="analytics-items">
+              <h4>Item-wise Analysis:</h4>
+              <table className="analytics-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Revenue</th>
+                    <th>Cost</th>
+                    <th>Profit</th>
+                    <th>Margin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.items?.map((item, index) => (
+                    <tr key={index}>
+                      <td>{item.product_name}</td>
+                      <td>{item.quantity}</td>
+                      <td>K{Number(item.total_price || 0).toFixed(2)}</td>
+                      <td>K{Number(item.cost_total || 0).toFixed(2)}</td>
+                      <td className={item.profit >= 0 ? 'profit' : 'loss'}>
+                        K{Number(item.profit || 0).toFixed(2)}
+                      </td>
+                      <td className={item.profit_margin >= 0 ? 'profit' : 'loss'}>
+                        {Number(item.profit_margin || 0).toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

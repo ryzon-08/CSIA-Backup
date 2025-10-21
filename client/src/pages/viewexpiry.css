@@ -20,7 +20,7 @@ html {
 .viewexpirycontainer {
   display: flex;
   justify-content: space-between;
-  padding: 15px 20px;
+  padding: 20px 20px;
   width: 92%;
   margin: 20px auto 20px auto; /* Center the container and prevent overflow */
   border-radius: 15px;

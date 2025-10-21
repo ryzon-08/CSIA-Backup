@@ -93,13 +93,22 @@ const InputStock = () => {
 
     // Handle product selection from dropdown
     const handleProductSelect = (product) => {
+        // Format expiry date for HTML date input (YYYY-MM-DD)
+        let formattedExpiryDate = '';
+        if (product.expiry_date) {
+            const date = new Date(product.expiry_date);
+            if (!isNaN(date.getTime())) {
+                formattedExpiryDate = date.toISOString().split('T')[0]; // Gets YYYY-MM-DD
+            }
+        }
+
         setFormData(prev => ({
             ...prev,
             product_id: product.product_id,
             product_name: product.product_name,
             cost_price: product.cost_price,
             selling_price: product.selling_price,
-            expiry_date: product.expiry_date || '',
+            expiry_date: formattedExpiryDate,
             staple: product.staple,
             // Keep quantity empty as user is adding stock
         }));
@@ -269,6 +278,12 @@ const InputStock = () => {
                     </div>
                 </div>
 
+                <div className="header-center">
+                    <button className="backbtn" onClick={handleBack}>
+                        ←
+                    </button>
+                </div>
+
                 <div className="headeright">
                     <div className="usersection">
                         <div className="userlogo">
@@ -276,9 +291,6 @@ const InputStock = () => {
                         </div>
                         <span className="user-id">{getUserId()}</span>
                     </div>
-                    <button className="backbtn" onClick={handleBack}>
-                        <FaArrowLeft />
-                    </button>
                 </div>
             </div>
 

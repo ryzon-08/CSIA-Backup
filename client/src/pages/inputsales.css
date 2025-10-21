@@ -19,7 +19,7 @@ html {
 .input-sales-container .inputsalescontainer {
   display: flex;
   justify-content: space-between;
-  padding: 8px 20px; /* A bit taller - 8px above and below nav tabs */
+  padding: 15px 20px; /* Increased height - 15px above and below nav tabs */
   width: 96%;
   margin: 10px auto; /* Reduced top margin to move header higher */
   border-radius: 15px;
@@ -88,12 +88,13 @@ html {
 
 .input-sales-container .inputsalesusersection {
   display: flex;
+  flex-direction: column;
   align-items: center;
   padding: 8px 15px;
   margin-right: 15px;
   margin-left: 25px;
   width: auto;
-  gap: 8px;
+  gap: 4px;
 }
 
 .input-sales-container .inputsalesuserlogo {

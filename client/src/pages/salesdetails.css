@@ -1,10 +1,22 @@
 /* Sales Bill Interface Styles - Matching Theme */
 
+/* Override any global overflow restrictions for this page */
+body.sales-details-page {
+  overflow: auto !important;
+  height: auto !important;
+}
+
+html.sales-details-page {
+  overflow: auto !important;
+  height: auto !important;
+}
+
 .sales-details-container {
   padding: 0;
   margin: 0;
   background-color: #f5f5f5;
   min-height: 100vh;
+  overflow-y: auto;
 }
 
 /* Header Section - Matching Purple Theme */
@@ -12,7 +24,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
+  padding: 20px 30px;
   background-color: #5a67d8;
   margin-bottom: 20px;
   border-radius: 0;
@@ -28,7 +40,8 @@
 
 .header-actions {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 15px;
 }
 
 .backbtn {
@@ -78,7 +91,7 @@
 /* Content Section */
 .sales-details-content {
   width: 95%;
-  margin: 0 auto;
+  margin: 0 auto 40px auto;
   padding: 30px;
   background-color: white;
   border: 1px solid #ddd;
@@ -290,4 +303,171 @@
   .summary-row.total {
     font-size: 18px;
   }
+}
+
+/* Analytics Button */
+.analyticsbtn {
+  padding: 12px 20px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-right: 20px;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.analyticsbtn:hover:not(:disabled) {
+  background-color: #218838;
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
+  transform: translateY(-1px);
+}
+
+.analyticsbtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+}
+
+/* Analytics Section */
+.analytics-section {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.analytics-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.analytics-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 10px 15px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.close-analytics {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-analytics:hover {
+  color: #333;
+}
+
+.analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.analytics-card {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+.analytics-card h4 {
+  margin: 0 0 10px 0;
+  color: #666;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.analytics-card .amount {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.amount.revenue {
+  color: #007bff;
+}
+
+.amount.cost {
+  color: #6c757d;
+}
+
+.amount.profit {
+  color: #28a745;
+}
+
+.amount.loss {
+  color: #dc3545;
+}
+
+.analytics-items h4 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #ddd;
+}
+
+.analytics-table th,
+.analytics-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.analytics-table th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+  color: #333;
+}
+
+.analytics-table td.profit {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.analytics-table td.loss {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.analytics-table tbody tr:hover {
+  background-color: #f8f9fa;
 }
