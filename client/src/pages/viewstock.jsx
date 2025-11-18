@@ -149,22 +149,41 @@ const ViewStock = () => {
         console.log('Current stockData:', stockData);
         
         // Validation for staple/expiry date relationship
+        const productsWithoutExpiry = [];
+        const productsWithExpiryButNotStaple = [];
+        
         for (const item of stockData) {
             // Check if item is being changed from staple to non-staple but has expiry date
             if (!item.staple && item.expiry_date) {
-                const confirmMessage = `Product "${item.product_name}" has an expiry date but you've unticked staple. This item has expiry date, are you sure you want to continue? The expiry date will be reset.`;
-                if (!window.confirm(confirmMessage)) {
-                    return; // Cancel save operation
-                }
-                // Reset expiry date to null if user confirms
-                item.expiry_date = null;
+                productsWithExpiryButNotStaple.push(item.product_name);
             }
             
             // Check if item is staple but has no expiry date
             if (item.staple && (!item.expiry_date || item.expiry_date === '')) {
-                alert(`Product "${item.product_name}" is marked as staple but has no expiry date. Please enter an expiry date for staple products.`);
+                productsWithoutExpiry.push(item.product_name);
+            }
+        }
+        
+        // Show all products that are staple but missing expiry dates
+        if (productsWithoutExpiry.length > 0) {
+            const productList = productsWithoutExpiry.map(name => `"${name}"`).join(', ');
+            alert(`The following products are marked as staple but have no expiry date: ${productList}. Please enter expiry dates for all staple products.`);
+            return; // Cancel save operation
+        }
+        
+        // Handle products with expiry date but not marked as staple
+        if (productsWithExpiryButNotStaple.length > 0) {
+            const productList = productsWithExpiryButNotStaple.join(', ');
+            const confirmMessage = `The following products have expiry dates but are not marked as staple: ${productList}.\n\nAre you sure you want to continue? The expiry dates will be reset.`;
+            if (!window.confirm(confirmMessage)) {
                 return; // Cancel save operation
             }
+            // Reset expiry dates for these items
+            stockData.forEach(item => {
+                if (!item.staple && item.expiry_date) {
+                    item.expiry_date = null;
+                }
+            });
         }
 
         try {
