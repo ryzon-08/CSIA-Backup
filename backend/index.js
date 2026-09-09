@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
 const axios = require('axios');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -19,6 +20,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Serve static files from React build in production
+app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // Ensure CORS headers are present on all responses and reply to preflight
 app.use((req, res, next) => {
